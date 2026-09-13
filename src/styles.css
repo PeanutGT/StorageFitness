@@ -1,116 +1,619 @@
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
-}
+/* ==========================================================================
+   StorageFitness - Next-Gen Windows Disk Analyzer & Cleaner
+   負責人：⚡ Gemini 3.8 Flash (現代 UI 元件與視覺設計)
+   設計哲學：Cyber-Glassmorphism, High-Density Analytics, 60fps Micro-interactions
+   ========================================================================== */
 
-.logo.typescript:hover {
-  filter: drop-shadow(0 0 2em #2d79c7);
-}
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 :root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
+  /* 核心色盤：深邃太空黑底 + 霓虹科技漸層 */
+  --bg-core: #090b14;
+  --bg-surface: rgba(18, 22, 41, 0.75);
+  --bg-surface-elevated: rgba(28, 35, 65, 0.85);
+  --bg-surface-hover: rgba(38, 48, 88, 0.9);
+  --bg-glass-subtle: rgba(255, 255, 255, 0.03);
+  
+  /* 邊框與陰影 */
+  --border-glass: rgba(255, 255, 255, 0.08);
+  --border-glass-active: rgba(0, 242, 254, 0.4);
+  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --shadow-neon-cyan: 0 0 20px rgba(0, 242, 254, 0.35);
+  --shadow-neon-pink: 0 0 20px rgba(255, 0, 128, 0.35);
 
-  color: #0f0f0f;
-  background-color: #f6f6f6;
+  /* 霓虹主軸強調色 */
+  --accent-cyan: #00f2fe;
+  --accent-blue: #4facfe;
+  --accent-purple: #7928ca;
+  --accent-pink: #ff0080;
+  --accent-emerald: #00f5a0;
+  --accent-amber: #ffb703;
+  --accent-danger: #ef4444;
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
+  /* 文字階層 */
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-accent: #38bdf8;
+
+  /* 檔案類別標籤配色 (Treemap Palette) */
+  --color-media: #ff007a;
+  --color-code: #00d4ff;
+  --color-binary: #9d4edd;
+  --color-archive: #ff9f1c;
+  --color-doc: #00f5a0;
+  --color-other: #475569;
+
+  /* 幾何尺寸與動態 */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-full: 9999px;
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.container {
+/* 基礎全域重置 */
+*, *::before, *::after {
+  box-sizing: border-box;
   margin: 0;
-  padding-top: 10vh;
+  padding: 0;
+  user-select: none;
+}
+
+body {
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg-core);
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(121, 40, 202, 0.15) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(0, 242, 254, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(255, 0, 128, 0.05) 0%, transparent 60%);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 滾動條樣式 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ==========================================================================
+   主視窗佈局 (App Shell)
+   ========================================================================== */
+#app {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+}
+
+/* 側邊導覽列 (Sidebar) */
+.sidebar {
+  width: 260px;
+  background: var(--bg-surface);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid var(--border-glass);
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  text-align: center;
+  padding: 24px 16px;
+  z-index: 10;
+  flex-shrink: 0;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
-
-.row {
+.brand-header {
   display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 24px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.brand-logo-icon {
+  width: 38px;
+  height: 38px;
+  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
   justify-content: center;
+  box-shadow: var(--shadow-neon-cyan);
 }
 
-a {
+.brand-logo-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 2.2;
+}
+
+.brand-name {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #ffffff 40%, var(--accent-cyan) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.brand-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: rgba(0, 242, 254, 0.15);
+  color: var(--accent-cyan);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(0, 242, 254, 0.3);
+  text-transform: uppercase;
+}
+
+/* 導覽選單 */
+.nav-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  flex-grow: 1;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 0.92rem;
   font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
-}
-
-h1 {
-  text-align: center;
-}
-
-input,
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  color: #0f0f0f;
-  background-color: #ffffff;
-  transition: border-color 0.25s;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
-}
-
-button {
   cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
 }
 
-button:hover {
-  border-color: #396cd8;
-}
-button:active {
-  border-color: #396cd8;
-  background-color: #e8e8e8;
+.nav-item:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+  border-color: var(--border-glass);
+  transform: translateX(3px);
 }
 
-input,
-button {
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.12), rgba(121, 40, 202, 0.12));
+  color: var(--accent-cyan);
+  border-color: var(--border-glass-active);
+  box-shadow: inset 0 0 12px rgba(0, 242, 254, 0.1);
+}
+
+.nav-item svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+
+/* 側邊欄底部硬碟資訊卡 */
+.sidebar-disk-card {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.disk-card-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.disk-card-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.progress-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
+  box-shadow: var(--shadow-neon-cyan);
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.disk-capacity-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ==========================================================================
+   主要內容區域 (Main Viewport)
+   ========================================================================== */
+.main-content {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 頂部操作與導航列 (Header Bar) */
+.header-bar {
+  height: 68px;
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-surface);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border-glass);
+  gap: 20px;
+  z-index: 5;
+}
+
+/* 路徑選擇器與搜尋 */
+.scan-control-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-grow: 1;
+  max-width: 650px;
+}
+
+.path-input-wrapper {
+  flex-grow: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.path-input {
+  width: 100%;
+  background: rgba(10, 14, 28, 0.6);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 10px 14px 10px 38px;
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.88rem;
   outline: none;
+  transition: all var(--transition-fast);
 }
 
-#greet-input {
-  margin-right: 5px;
+.path-input:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 2px rgba(0, 242, 254, 0.2);
+  background: rgba(10, 14, 28, 0.9);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f6f6f6;
-    background-color: #2f2f2f;
-  }
+.path-input-icon {
+  position: absolute;
+  left: 12px;
+  width: 18px;
+  height: 18px;
+  stroke: var(--text-muted);
+  stroke-width: 2;
+  fill: none;
+}
 
-  a:hover {
-    color: #24c8db;
-  }
+/* 快捷磁碟按鈕標籤 */
+.quick-drives {
+  display: flex;
+  gap: 6px;
+}
 
-  input,
-  button {
-    color: #ffffff;
-    background-color: #0f0f0f98;
-  }
-  button:active {
-    background-color: #0f0f0f69;
-  }
+.drive-pill {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-glass);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.drive-pill:hover, .drive-pill.active {
+  background: rgba(0, 242, 254, 0.15);
+  color: var(--accent-cyan);
+  border-color: var(--border-glass-active);
+}
+
+/* 掃描主按鈕 */
+.btn-scan {
+  background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-blue) 50%, var(--accent-purple) 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 10px 22px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all var(--transition-smooth);
+  box-shadow: 0 4px 16px rgba(0, 242, 254, 0.35);
+  flex-shrink: 0;
+}
+
+.btn-scan:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(0, 242, 254, 0.55);
+}
+
+.btn-scan:active {
+  transform: translateY(0);
+}
+
+.btn-scan.scanning {
+  background: linear-gradient(135deg, #475569, #334155);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.btn-scan svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  fill: none;
+}
+
+/* 麵包屑導航 (Breadcrumbs) */
+.breadcrumb-bar {
+  padding: 12px 28px;
+  background: rgba(15, 20, 38, 0.4);
+  border-bottom: 1px solid var(--border-glass);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-family: 'JetBrains Mono', monospace;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.breadcrumb-item {
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.breadcrumb-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.breadcrumb-item.active {
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+.breadcrumb-separator {
+  color: var(--text-muted);
+}
+
+/* ==========================================================================
+   統計指標橫條 (Metrics Bar)
+   ========================================================================== */
+.metrics-strip {
+  padding: 10px 28px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: rgba(18, 22, 41, 0.3);
+  border-bottom: 1px solid var(--border-glass);
+  font-size: 0.84rem;
+}
+
+.metric-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+
+.metric-value {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.metric-badge-shield {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 245, 160, 0.12);
+  color: var(--accent-emerald);
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(0, 245, 160, 0.25);
+  font-size: 0.76rem;
+  font-weight: 600;
+  margin-left: auto;
+}
+
+/* ==========================================================================
+   核心畫布與 Treemap 區域 (Canvas Container)
+   ========================================================================== */
+.viewport-container {
+  flex-grow: 1;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: radial-gradient(circle at center, rgba(16, 21, 44, 0.6) 0%, rgba(9, 11, 20, 0.95) 100%);
+}
+
+#treemap-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Treemap 懸浮提示框 (Tooltip) */
+.treemap-tooltip {
+  position: absolute;
+  pointer-events: none;
+  z-index: 100;
+  background: rgba(18, 24, 48, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-glass-active);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  box-shadow: var(--shadow-glass), 0 0 20px rgba(0, 242, 254, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+  min-width: 220px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.treemap-tooltip.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.tooltip-name {
+  font-weight: 700;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.tooltip-size {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent-cyan);
+}
+
+.tooltip-path {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+.tooltip-badge {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.tooltip-badge.symlink {
+  background: rgba(255, 183, 3, 0.15);
+  color: var(--accent-amber);
+  border: 1px solid rgba(255, 183, 3, 0.3);
+}
+
+/* 圖例說明 (Legend) */
+.treemap-legend {
+  position: absolute;
+  bottom: 20px;
+  left: 28px;
+  background: rgba(18, 22, 41, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  z-index: 10;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+/* 狀態列 (Status Bar) */
+.status-bar {
+  height: 32px;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-glass);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  z-index: 5;
+}
+
+.status-left, .status-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-emerald);
+  box-shadow: 0 0 8px var(--accent-emerald);
+}
+
+.status-dot.scanning {
+  background: var(--accent-cyan);
+  box-shadow: 0 0 10px var(--accent-cyan);
+  animation: pulse-ring 1.2s infinite;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.9); opacity: 0.6; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.6; }
 }

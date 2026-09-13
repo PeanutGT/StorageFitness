@@ -1,43 +1,122 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-TW">
   <head>
     <meta charset="UTF-8" />
-    <link rel="stylesheet" href="/src/styles.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tauri App</title>
+    <title>StorageFitness - Next-Gen Windows Disk Analyzer & Cleaner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/src/styles.css" />
     <script type="module" src="/src/main.ts" defer></script>
   </head>
 
   <body>
-    <main class="container">
-      <h1>Welcome to Tauri</h1>
+    <div id="app">
+      <!-- 側邊選單導覽列 -->
+      <aside id="sidebar-container" class="sidebar"></aside>
 
-      <div class="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/src/assets/vite.svg" class="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img
-            src="/src/assets/tauri.svg"
-            class="logo tauri"
-            alt="Tauri logo"
-          />
-        </a>
-        <a href="https://www.typescriptlang.org/docs" target="_blank">
-          <img
-            src="/src/assets/typescript.svg"
-            class="logo typescript"
-            alt="typescript logo"
-          />
-        </a>
-      </div>
-      <p>Click on the Tauri logo to learn more about the framework</p>
+      <!-- 主要內容區域 -->
+      <main class="main-content">
+        <!-- 頂部操作列 -->
+        <header class="header-bar">
+          <div class="scan-control-group">
+            <div class="path-input-wrapper">
+              <svg class="path-input-icon" viewBox="0 0 24 24">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+              </svg>
+              <input type="text" id="target-path-input" class="path-input" value="C:\" placeholder="輸入或選擇掃描路徑 (例如 C:\ 或專案資料夾)..." spellcheck="false" />
+            </div>
 
-      <form class="row" id="greet-form">
-        <input id="greet-input" placeholder="Enter a name..." />
-        <button type="submit">Greet</button>
-      </form>
-      <p id="greet-msg"></p>
-    </main>
+            <!-- 快捷磁碟切換 -->
+            <div class="quick-drives">
+              <button class="drive-pill active" data-drive="C:\">C:</button>
+              <button class="drive-pill" data-drive="D:\">D:</button>
+            </div>
+          </div>
+
+          <!-- 主掃描按鈕 -->
+          <button id="btn-start-scan" class="btn-scan">
+            <svg viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <span id="scan-btn-label">極速掃描</span>
+          </button>
+        </header>
+
+        <!-- 麵包屑路徑列 (僅在視覺化分頁顯示) -->
+        <nav id="breadcrumb-bar" class="breadcrumb-bar">
+          <span class="breadcrumb-item active" data-path="root">C:\</span>
+        </nav>
+
+        <!-- 統計指標橫條 -->
+        <div id="metrics-strip" class="metrics-strip">
+          <div class="metric-item">
+            <span>佔用空間:</span>
+            <span id="metric-total-size" class="metric-value">--</span>
+          </div>
+          <div class="metric-item">
+            <span>掃描檔案數:</span>
+            <span id="metric-files-count" class="metric-value">--</span>
+          </div>
+          <div class="metric-item">
+            <span>Reparse Points 阻斷:</span>
+            <span id="metric-reparse-count" class="metric-value" style="color: var(--accent-amber);">0 個</span>
+          </div>
+          <div class="metric-badge-shield">
+            <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke: currentColor; stroke-width: 2.2; fill: none;">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <span>Hard Whitelist 核心防護已就緒</span>
+          </div>
+        </div>
+
+        <!-- 頁面視圖 1: 磁碟視覺化 Treemap -->
+        <section id="view-visualizer" class="viewport-container">
+          <canvas id="treemap-canvas"></canvas>
+
+          <!-- 懸浮詳細資訊 Tooltip -->
+          <div id="treemap-tooltip" class="treemap-tooltip">
+            <div class="tooltip-name">--</div>
+            <div class="tooltip-size">--</div>
+            <div class="tooltip-path">--</div>
+            <span class="tooltip-badge">--</span>
+          </div>
+
+          <!-- 色彩圖例 -->
+          <div class="treemap-legend">
+            <div class="legend-item"><div class="legend-dot" style="background: var(--color-media);"></div>影音媒體</div>
+            <div class="legend-item"><div class="legend-dot" style="background: var(--color-code);"></div>程式碼/專案</div>
+            <div class="legend-item"><div class="legend-dot" style="background: var(--color-binary);"></div>二進位/執行檔</div>
+            <div class="legend-item"><div class="legend-dot" style="background: var(--color-archive);"></div>壓縮/映像檔</div>
+            <div class="legend-item"><div class="legend-dot" style="background: var(--color-doc);"></div>文件檔案</div>
+            <div class="legend-item"><div class="legend-dot" style="background: var(--accent-amber);"></div>Junction 連結</div>
+          </div>
+        </section>
+
+        <!-- 頁面視圖 2: 智慧瘦身清理 -->
+        <section id="view-cleaner" style="display: none; height: 100%; overflow: hidden;"></section>
+
+        <!-- 頁面視圖 3: 白名單與安全 -->
+        <section id="view-security" style="display: none; height: 100%; overflow: hidden;"></section>
+
+        <!-- 頁面視圖 4: 設定面板 -->
+        <section id="view-settings" style="display: none; height: 100%; overflow: hidden;"></section>
+
+        <!-- 底部微型狀態列 -->
+        <footer class="status-bar">
+          <div class="status-left">
+            <div id="status-dot" class="status-dot"></div>
+            <span id="status-text">就緒 (待命模式)</span>
+          </div>
+          <div class="status-right">
+            <span>引擎: Standard Win32 API</span>
+            <span>·</span>
+            <span>60 FPS WebGL/Canvas</span>
+          </div>
+        </footer>
+      </main>
+    </div>
   </body>
 </html>
