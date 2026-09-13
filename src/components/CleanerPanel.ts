@@ -4,8 +4,8 @@
  * 模組：智慧清理規則與掃描面板 (src/components/CleanerPanel.ts)
  */
 
-import type { CleanupRule } from '../shared/ipc-contracts';
-import { formatBytes } from '../services/ipc';
+import type { CleanupRule, MftRecordSummary } from '../shared/ipc-contracts';
+import { formatBytes, updateCleanupRules, analyzeCleanupTargets } from '../services/ipc';
 
 export const DEFAULT_CLEANUP_RULES: CleanupRule[] = [
   {
@@ -59,11 +59,45 @@ export class CleanerPanelComponent {
   private container: HTMLElement;
   private rules: CleanupRule[] = DEFAULT_CLEANUP_RULES;
   private selectedRuleIds: Set<string> = new Set();
+  private isUpdating: boolean = false;
+  private isAnalyzing: boolean = false;
 
   constructor(container: HTMLElement) {
     this.container = container;
     this.rules.filter(r => r.defaultSelected).forEach(r => this.selectedRuleIds.add(r.ruleId));
     this.render();
+  }
+
+  public async fetchRules(): Promise<void> {
+    if (this.isUpdating) return;
+    this.isUpdating = true;
+    this.render();
+    try {
+      const newRules = await updateCleanupRules();
+      this.rules = newRules;
+      this.selectedRuleIds.clear();
+      this.rules.filter(r => r.defaultSelected).forEach(r => this.selectedRuleIds.add(r.ruleId));
+    } catch (e) {
+      console.error('Failed to fetch rules:', e);
+      alert('無法取得雲端規則，請檢查網路連線。');
+    } finally {
+      this.isUpdating = false;
+      this.render();
+    }
+  }
+
+  public async analyze(tree: MftRecordSummary): Promise<void> {
+    if (this.isAnalyzing) return;
+    this.isAnalyzing = true;
+    this.render();
+    try {
+      this.rules = await analyzeCleanupTargets(tree, this.rules);
+    } catch (e) {
+      console.error('Failed to analyze rules:', e);
+    } finally {
+      this.isAnalyzing = false;
+      this.render();
+    }
   }
 
   public show(): void {
@@ -88,7 +122,21 @@ export class CleanerPanelComponent {
         <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 28px;">
           <div>
             <h2 style="font-size: 1.6rem; font-weight: 800; background: linear-gradient(135deg, #fff, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">智慧瘦身清理</h2>
-            <p style="color: var(--text-secondary); font-size: 0.92rem; margin-top: 4px;">由雲端規則引擎推薦的高價值安全清理目標</p>
+            <div style="display: flex; align-items: center; gap: 12px; margin-top: 4px;">
+              <p style="color: var(--text-secondary); font-size: 0.92rem; margin: 0;">由雲端規則引擎推薦的高價值安全清理目標</p>
+              <button id="btn-ota-update" ${this.isUpdating ? 'disabled' : ''} style="
+                background: var(--bg-surface);
+                border: 1px solid var(--border-glass);
+                color: var(--accent-cyan);
+                padding: 4px 12px;
+                border-radius: var(--radius-sm);
+                font-size: 0.8rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all var(--transition-fast);
+              ">${this.isUpdating ? '更新中...' : '⟳ OTA 更新規則'}</button>
+            </div>
+            ${this.isAnalyzing ? '<div style="color: var(--accent-amber); font-size: 0.85rem; margin-top: 8px;">⏳ 正在分析磁碟佔用，請稍候...</div>' : ''}
           </div>
           <div style="text-align: right;">
             <div style="font-size: 0.8rem; color: var(--text-muted);">已選取預估釋放空間</div>
@@ -182,6 +230,14 @@ export class CleanerPanelComponent {
         this.render();
       });
     });
+
+    // 綁定 OTA 更新按鈕
+    const otaBtn = this.container.querySelector('#btn-ota-update');
+    if (otaBtn) {
+      otaBtn.addEventListener('click', () => {
+        this.fetchRules();
+      });
+    }
 
     // 全選切換按鈕
     const selectAllBtn = this.container.querySelector('#btn-select-all');

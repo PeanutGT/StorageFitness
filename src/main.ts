@@ -174,6 +174,9 @@ class StorageFitnessApp {
       // 更新指標
       this.updateMetrics(tree);
 
+      // 觸發清理規則容量精算
+      this.cleanerPanel.analyze(tree);
+
       // 更新 Treemap 渲染
       this.treemap.setRootNode(tree);
       this.renderBreadcrumbs();

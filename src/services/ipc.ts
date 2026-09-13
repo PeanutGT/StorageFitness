@@ -6,7 +6,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
-import type { MftRecordSummary } from '../shared/ipc-contracts';
+import type { MftRecordSummary, CleanupRule } from '../shared/ipc-contracts';
 
 /**
  * 檢查當前是否運行於 Tauri 桌面環境中
@@ -132,18 +132,57 @@ function createMockDiskTree(rootPath: string): MftRecordSummary {
 }
 
 /**
- * 掃描目標目錄
+ * 執行目錄掃描
  * @param path 要掃描的目錄絕對路徑
  */
 export async function scanDirectory(path: string): Promise<MftRecordSummary> {
   if (isTauriEnvironment()) {
-    return await invoke<MftRecordSummary>('scan_directory', { path });
+    try {
+      const result = await invoke<MftRecordSummary>('scan_directory', { path });
+      return result;
+    } catch (error) {
+      console.error('Tauri scan_directory failed:', error);
+      throw error;
+    }
+  } else {
+    console.warn('Tauri environment not detected. Using mock disk tree data.');
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(createMockDiskTree(path));
+      }, 1500);
+    });
   }
+}
 
-  // 瀏覽器預覽降級模式 (提供絲滑體驗)
-  console.info(`[StorageFitness DevMode] Mocking directory scan for: ${path}`);
-  await new Promise(resolve => setTimeout(resolve, 600)); // 模擬極速掃描延遲
-  return createMockDiskTree(path);
+/**
+ * 從雲端獲取最新清理規則
+ */
+export async function updateCleanupRules(): Promise<CleanupRule[]> {
+  if (isTauriEnvironment()) {
+    return await invoke<CleanupRule[]>('update_cleanup_rules');
+  }
+  // Mock data for browser
+  return [
+    {
+      ruleId: "dev-node-modules",
+      name: "Node.js 專案依賴 (node_modules)",
+      description: "專案中未使用的巨大依賴庫",
+      targetPattern: "**/node_modules",
+      riskLevel: "SAFE",
+      defaultSelected: true
+    }
+  ];
+}
+
+/**
+ * 精算規則容量
+ */
+export async function analyzeCleanupTargets(tree: MftRecordSummary, rules: CleanupRule[]): Promise<CleanupRule[]> {
+  if (isTauriEnvironment()) {
+    return await invoke<CleanupRule[]>('analyze_cleanup_targets', { tree, rules });
+  }
+  // Mock logic
+  return rules.map(r => ({ ...r, estimatedSize: 1024 * 1024 * 500 }));
 }
 
 /**
