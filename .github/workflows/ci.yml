@@ -1,0 +1,97 @@
+name: Continuous Integration & Security Audits
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # -------------------------------------------------------------
+  # Job 1: 前端檢查、規則庫 Schema 驗證與前端單元測試 (⚡ Flash 主力)
+  # -------------------------------------------------------------
+  frontend-and-rules-validation:
+    name: Frontend, UI & Rulebase Validation
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Frontend Dependencies
+        run: npm ci
+
+      - name: Validate Cleanup Rules (JSON Schema Lint)
+        run: npm run test:rules-schema
+
+      - name: Run Vitest Unit Tests
+        run: npm run test:unit
+
+  # -------------------------------------------------------------
+  # Job 2: Rust 底層引擎、安全規範與 Win32 FFI 測試 (🧠 Opus 主力)
+  # -------------------------------------------------------------
+  rust-core-engine-and-security:
+    name: Rust Engine, Security Audit & MFT Tests
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Stable Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Rust Cache Setup
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Check Rust Code Formatting
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+
+      - name: Run Clippy Linter (Zero-Warning Enforcement)
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+
+      - name: Run Rust Unit & Integration Tests (Reparse Point & MFT)
+        run: cargo test --manifest-path src-tauri/Cargo.toml --verbose
+
+  # -------------------------------------------------------------
+  # Job 3: Tauri v2 端到端編譯相容性驗證 (Integration Gate)
+  # -------------------------------------------------------------
+  tauri-build-verification:
+    name: Tauri Build Verification
+    needs: [frontend-and-rules-validation, rust-core-engine-and-security]
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Stable Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache Setup
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install Frontend Dependencies
+        run: npm ci
+
+      - name: Build Tauri Desktop Application (Dry Run)
+        run: npm run tauri build -- --debug
