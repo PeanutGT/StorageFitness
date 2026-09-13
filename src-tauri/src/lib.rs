@@ -8,6 +8,7 @@
 pub mod errors;
 pub mod mft;
 pub mod models;
+pub mod rules;
 pub mod safety;
 pub mod scanner;
 
@@ -79,6 +80,24 @@ fn is_reparse_point(path: String) -> bool {
     safety::is_reparse_point(&target)
 }
 
+/// 透過 HTTP 從官方雲端倉庫 (OTA) 下載最新的 JSON 規則庫。
+#[tauri::command]
+async fn update_cleanup_rules() -> Result<Vec<rules::CleanupRule>, String> {
+    match rules::RulesEngine::fetch_ota_rules().await {
+        Ok(rules) => Ok(rules),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+/// 傳入現有樹狀結構與規則，精算每個規則實際匹配的總容量。
+#[tauri::command]
+fn analyze_cleanup_targets(
+    tree: models::FileNode,
+    rules: Vec<rules::CleanupRule>,
+) -> Vec<rules::CleanupRule> {
+    rules::RulesEngine::analyze_cleanup_targets(&tree, &rules)
+}
+
 // ==========================================
 // Tauri Application Bootstrap
 // ==========================================
@@ -91,6 +110,8 @@ pub fn run() {
             scan_directory,
             check_path_safety,
             is_reparse_point,
+            update_cleanup_rules,
+            analyze_cleanup_targets,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

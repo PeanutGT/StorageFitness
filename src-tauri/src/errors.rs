@@ -42,6 +42,10 @@ pub enum EngineError {
     /// 序列化 / 反序列化失敗
     #[error("serialization error: {0}")]
     SerializationError(#[from] serde_json::Error),
+
+    /// 網路連線或 API 請求失敗
+    #[error("network or API error: {0}")]
+    NetworkError(String),
 }
 
 /// 從 walkdir::Error 轉換，避免在掃描迴圈中使用 unwrap

@@ -1,0 +1,42 @@
+[
+  {
+    "ruleId": "dev-node-modules",
+    "name": "Node.js 專案依賴 (node_modules)",
+    "description": "專案中未使用的巨大依賴庫，可隨時透過 npm/pnpm install 重新安裝",
+    "targetPattern": "**/node_modules",
+    "riskLevel": "SAFE",
+    "defaultSelected": true
+  },
+  {
+    "ruleId": "dev-rust-target",
+    "name": "Rust 建置產物 (target)",
+    "description": "Cargo 編譯產生的中介檔與肥大 rlib 檔案",
+    "targetPattern": "**/target/debug",
+    "riskLevel": "SAFE",
+    "defaultSelected": true
+  },
+  {
+    "ruleId": "sys-user-temp",
+    "name": "Windows 使用者暫存檔案 (%TEMP%)",
+    "description": "應用程式遺留的臨時工作檔案與未清理日誌",
+    "targetPattern": "**/*/AppData/Local/Temp/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true
+  },
+  {
+    "ruleId": "browser-caches",
+    "name": "瀏覽器快取 (Chrome / Edge)",
+    "description": "網頁預載暫存檔與多媒體快取，清理後首次載入網頁可能微慢",
+    "targetPattern": "**/*/User Data/Default/Cache",
+    "riskLevel": "SAFE",
+    "defaultSelected": false
+  },
+  {
+    "ruleId": "sys-crash-dumps",
+    "name": "Windows 系統崩潰轉儲檔 (Crash Dumps)",
+    "description": "藍屏或程式崩潰產生的 .dmp 診斷紀錄",
+    "targetPattern": "**/Windows/Minidump/*.dmp",
+    "riskLevel": "QUARANTINE",
+    "defaultSelected": false
+  }
+]
