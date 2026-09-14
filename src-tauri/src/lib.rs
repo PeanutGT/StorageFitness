@@ -17,6 +17,7 @@ use std::path::PathBuf;
 use crate::errors::EngineError;
 use crate::models::ScanProgressEvent;
 use crate::scanner::{DiskScanner, StandardScanner};
+use crate::mft::{MftScanner, MftScannerConfig};
 
 // ==========================================
 // Tauri Commands (前端 IPC 橋接)
@@ -98,6 +99,49 @@ fn analyze_cleanup_targets(
     rules::RulesEngine::analyze_cleanup_targets(&tree, &rules)
 }
 
+/// 以 MFT 直讀方式掃描整個磁碟（需要管理員權限）。
+///
+/// 前端透過 `invoke('scan_directory_mft', { driveLetter: 'C' })` 呼叫。
+/// 此引擎繞過 Win32 File API，直接讀取 NTFS Volume Handle 的 $MFT，
+/// 實現數秒內全磁碟解析。
+#[tauri::command]
+fn scan_directory_mft(drive_letter: String) -> Result<models::FileNode, String> {
+    let letter = drive_letter.chars().next().unwrap_or('C');
+
+    let config = MftScannerConfig {
+        drive_letter: letter,
+        ..MftScannerConfig::default()
+    };
+    let scanner = MftScanner::new(config);
+
+    let progress_log: std::sync::Arc<std::sync::Mutex<Vec<ScanProgressEvent>>> =
+        std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+
+    let log_clone = progress_log.clone();
+    let root = PathBuf::from(format!("{}:\\", letter));
+    let result = scanner.scan(&root, &move |event| {
+        if let Ok(mut log) = log_clone.lock() {
+            log.push(event);
+        }
+    });
+
+    match result {
+        Ok(tree) => Ok(tree),
+        Err(EngineError::InsufficientPrivilege(msg)) => {
+            Err(format!("ELEVATION_REQUIRED: {}", msg))
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+/// 檢查當前進程是否以管理員身份運行。
+///
+/// 前端可透過此指令判斷是否需要顯示 UAC 提權按鈕。
+#[tauri::command]
+fn check_admin_status() -> bool {
+    MftScanner::check_admin_privilege().unwrap_or(false)
+}
+
 // ==========================================
 // Tauri Application Bootstrap
 // ==========================================
@@ -112,6 +156,8 @@ pub fn run() {
             is_reparse_point,
             update_cleanup_rules,
             analyze_cleanup_targets,
+            scan_directory_mft,
+            check_admin_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

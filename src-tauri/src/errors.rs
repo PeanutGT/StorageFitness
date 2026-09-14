@@ -46,6 +46,10 @@ pub enum EngineError {
     /// 網路連線或 API 請求失敗
     #[error("network or API error: {0}")]
     NetworkError(String),
+
+    /// 權限不足（需要管理員權限才可執行 MFT 直讀等操作）
+    #[error("insufficient privileges: {0}")]
+    InsufficientPrivilege(String),
 }
 
 /// 從 walkdir::Error 轉換，避免在掃描迴圈中使用 unwrap

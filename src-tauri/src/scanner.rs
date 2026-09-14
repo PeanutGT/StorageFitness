@@ -298,6 +298,8 @@ impl DiskScanner for StandardScanner {
 mod tests {
     use super::*;
     use std::fs;
+    use std::path::PathBuf;
+    use std::cell::RefCell;
 
     #[test]
     fn test_scanner_creates_tree_for_temp_dir() {
@@ -309,10 +311,12 @@ mod tests {
             .expect("Failed to write test file");
 
         let scanner = StandardScanner::new(100);
-        let mut progress_events = Vec::new();
+        let progress_events = RefCell::new(Vec::new());
 
         let result = scanner.scan(&temp_dir, &|event| {
-            progress_events.push(event);
+            if let Ok(mut events) = progress_events.try_borrow_mut() {
+                events.push(event);
+            }
         });
 
         assert!(result.is_ok());
@@ -323,10 +327,11 @@ mod tests {
         assert!(tree.children.is_some());
 
         // 驗證進度事件有發送
-        assert!(!progress_events.is_empty());
+        let events = progress_events.borrow();
+        assert!(!events.is_empty());
         // 最後一個事件應為 Completed
         assert_eq!(
-            progress_events.last().map(|e| &e.status),
+            events.last().map(|e| &e.status),
             Some(&ScanStatus::Completed)
         );
 
