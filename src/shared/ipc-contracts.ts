@@ -74,6 +74,13 @@ export interface CleanupRule {
   defaultSelected: boolean;
 }
 
+export interface CleanupAnalysisResult {
+  /** 已經填寫 `estimatedSize` 的規則陣列 */
+  rules: CleanupRule[];
+  /** `ruleId` 對應的 `絕對路徑清單` 對應表 */
+  matchedPaths: Record<string, string[]>;
+}
+
 // ==========================================
 // 4. 絕對保護白名單 (Hard-Coded System Whitelist)
 // ==========================================

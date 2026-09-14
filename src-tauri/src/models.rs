@@ -114,3 +114,13 @@ pub struct CleanupRule {
     /// 是否預設勾選（供 UI 使用）
     pub default_selected: bool,
 }
+
+/// 清理分析結果：包含更新後的規則清單，以及各規則所匹配到的具體實體路徑。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CleanupAnalysisResult {
+    /// 已經填寫 `estimated_size` 的規則陣列
+    pub rules: Vec<CleanupRule>,
+    /// `rule_id` -> [絕對路徑清單] 的對應表
+    pub matched_paths: std::collections::HashMap<String, Vec<String>>,
+}

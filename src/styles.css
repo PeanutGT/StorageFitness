@@ -617,3 +617,395 @@ body {
   50% { transform: scale(1.3); opacity: 1; }
   100% { transform: scale(0.9); opacity: 0.6; }
 }
+
+/* ==========================================================================
+   MFT 極速深度掃描控制項與 UAC 盾牌樣式 (Sidebar MFT Controls)
+   ========================================================================== */
+.disk-fs-badge {
+  font-size: 0.72rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  background: rgba(0, 242, 254, 0.12);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(0, 242, 254, 0.25);
+}
+
+.sidebar-mft-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.btn-mft-scan {
+  width: 100%;
+  position: relative;
+  background: linear-gradient(135deg, rgba(20, 27, 56, 0.95), rgba(13, 17, 36, 0.95));
+  border: 1px solid rgba(0, 242, 254, 0.35);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all var(--transition-smooth);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.btn-mft-scan::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(0, 242, 254, 0.15), transparent);
+  transition: left 0.6s ease;
+}
+
+.btn-mft-scan:hover::before {
+  left: 100%;
+}
+
+.btn-mft-scan:hover {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 4px 20px rgba(0, 242, 254, 0.25);
+  transform: translateY(-1px);
+}
+
+.btn-mft-scan:active {
+  transform: translateY(0);
+}
+
+.btn-mft-scan.scanning {
+  background: rgba(20, 24, 45, 0.8);
+  border-color: rgba(255, 255, 255, 0.15);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-mft-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+
+.mft-rocket-icon {
+  width: 15px;
+  height: 15px;
+  fill: var(--accent-cyan);
+  stroke: var(--accent-cyan);
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 4px rgba(0, 242, 254, 0.5));
+}
+
+/* UAC 盾牌小圖示指示器 */
+.uac-shield-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.uac-shield-indicator.elevation-needed {
+  background: rgba(255, 183, 3, 0.15);
+  border: 1px solid rgba(255, 183, 3, 0.4);
+  color: var(--accent-amber);
+  box-shadow: 0 0 8px rgba(255, 183, 3, 0.25);
+}
+
+.uac-shield-indicator.admin-granted {
+  background: rgba(0, 245, 160, 0.15);
+  border: 1px solid rgba(0, 245, 160, 0.4);
+  color: var(--accent-emerald);
+  box-shadow: 0 0 8px rgba(0, 245, 160, 0.25);
+}
+
+.shield-uac-icon, .shield-granted-icon {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+}
+
+/* 狀態微標籤 */
+.mft-status-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  padding: 0 2px;
+}
+
+.hint-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.hint-dot.uac {
+  background: var(--accent-amber);
+  box-shadow: 0 0 6px var(--accent-amber);
+}
+
+.hint-dot.ready {
+  background: var(--accent-emerald);
+  box-shadow: 0 0 6px var(--accent-emerald);
+}
+
+.hint-text {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ==========================================================================
+   Cyber-Glassmorphism 提示彈窗 (Elevation / Alert Modal)
+   ========================================================================== */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(4, 6, 15, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-backdrop.visible {
+  opacity: 1;
+}
+
+.modal-backdrop.closing {
+  opacity: 0;
+}
+
+.modal-dialog {
+  position: relative;
+  width: 90%;
+  max-width: 520px;
+  background: rgba(18, 24, 48, 0.94);
+  border: 1px solid rgba(255, 183, 3, 0.35);
+  border-radius: var(--radius-lg);
+  box-shadow: 
+    0 24px 64px rgba(0, 0, 0, 0.75),
+    0 0 32px rgba(255, 183, 3, 0.15),
+    inset 0 1px 1px rgba(255, 255, 255, 0.15);
+  padding: 26px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  transform: scale(0.92) translateY(12px);
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.modal-backdrop.visible .modal-dialog {
+  transform: scale(1) translateY(0);
+}
+
+.modal-backdrop.closing .modal-dialog {
+  transform: scale(0.94) translateY(8px);
+}
+
+.modal-glow {
+  position: absolute;
+  top: -80px;
+  right: -80px;
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(circle, rgba(255, 183, 3, 0.22) 0%, transparent 70%);
+  pointer-events: none;
+  filter: blur(24px);
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  position: relative;
+  z-index: 2;
+}
+
+.uac-modal-shield-badge {
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 183, 3, 0.12);
+  border: 1px solid rgba(255, 183, 3, 0.35);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 16px rgba(255, 183, 3, 0.25);
+  flex-shrink: 0;
+}
+
+.uac-shield-svg {
+  width: 28px;
+  height: 28px;
+}
+
+.shield-outline {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 1.8;
+  opacity: 0.85;
+}
+
+.modal-title-group {
+  flex-grow: 1;
+}
+
+.modal-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  color: #ffffff;
+}
+
+.modal-subtitle {
+  font-size: 0.72rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--accent-amber);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.modal-close-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+.modal-body {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-message {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.modal-message strong {
+  color: #ffffff;
+}
+
+.modal-tech-specs {
+  background: rgba(10, 14, 28, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tech-spec-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.78rem;
+}
+
+.tech-spec-label {
+  color: var(--text-muted);
+}
+
+.tech-spec-value {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--accent-cyan);
+  font-weight: 500;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  position: relative;
+  z-index: 2;
+  padding-top: 6px;
+}
+
+.btn-modal-cancel {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-glass);
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  padding: 8px 18px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-modal-cancel:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+}
+
+.btn-modal-action {
+  background: linear-gradient(135deg, var(--accent-amber) 0%, #d97706 100%);
+  border: none;
+  color: #0b0d17;
+  border-radius: var(--radius-md);
+  padding: 8px 22px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-smooth);
+  box-shadow: 0 4px 14px rgba(255, 183, 3, 0.35);
+}
+
+.btn-modal-action:hover {
+  box-shadow: 0 6px 20px rgba(255, 183, 3, 0.55);
+  transform: translateY(-1px);
+}
+
+.btn-modal-action:active {
+  transform: translateY(0);
+}
+

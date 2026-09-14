@@ -6,7 +6,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
-import type { MftRecordSummary, CleanupRule } from '../shared/ipc-contracts';
+import type { MftRecordSummary, CleanupRule, CleanupAnalysisResult } from '../shared/ipc-contracts';
 
 /**
  * 檢查當前是否運行於 Tauri 桌面環境中
@@ -175,14 +175,17 @@ export async function updateCleanupRules(): Promise<CleanupRule[]> {
 }
 
 /**
- * 精算規則容量
+ * 精算規則容量，並收集匹配的路徑
  */
-export async function analyzeCleanupTargets(tree: MftRecordSummary, rules: CleanupRule[]): Promise<CleanupRule[]> {
+export async function analyzeCleanupTargets(tree: MftRecordSummary, rules: CleanupRule[]): Promise<CleanupAnalysisResult> {
   if (isTauriEnvironment()) {
-    return await invoke<CleanupRule[]>('analyze_cleanup_targets', { tree, rules });
+    return await invoke<CleanupAnalysisResult>('analyze_cleanup_targets', { tree, rules });
   }
   // Mock logic
-  return rules.map(r => ({ ...r, estimatedSize: 1024 * 1024 * 500 }));
+  return {
+    rules: rules.map(r => ({ ...r, estimatedSize: 1024 * 1024 * 500 })),
+    matchedPaths: {}
+  };
 }
 
 /**
@@ -206,4 +209,66 @@ export async function isReparsePoint(path: string): Promise<boolean> {
     return await invoke<boolean>('is_reparse_point', { path });
   }
   return path.includes('.bin') || path.includes('symlink');
+}
+
+/**
+ * 檢查當前執行程序是否具有 Windows 管理員權限
+ * 透過 Tauri IPC 呼叫後端 check_admin_status
+ */
+export async function checkAdminStatus(): Promise<boolean> {
+  if (isTauriEnvironment()) {
+    try {
+      return await invoke<boolean>('check_admin_status');
+    } catch (error) {
+      console.error('Tauri check_admin_status failed:', error);
+      return false;
+    }
+  }
+
+  // 純瀏覽器預覽環境下預設回傳 false 以供測試 UAC 流程
+  return false;
+}
+
+/**
+ * 透過 NTFS $MFT 二進位直讀引擎進行全磁碟極速掃描 (需管理員權限)
+ * @param driveLetter 磁碟代號 (例如 'C' 或 'D')
+ */
+export async function scanDirectoryMft(driveLetter: string): Promise<MftRecordSummary> {
+  const cleanLetter = (driveLetter.replace(/[^a-zA-Z]/g, '').slice(0, 1) || 'C').toUpperCase();
+
+  if (isTauriEnvironment()) {
+    try {
+      const result = await invoke<MftRecordSummary>('scan_directory_mft', { driveLetter: cleanLetter });
+      return result;
+    } catch (error) {
+      console.error('Tauri scan_directory_mft failed:', error);
+      throw error;
+    }
+  } else {
+    // 瀏覽器預覽環境下模擬降級與 UAC 錯誤拋出
+    console.warn(`[Mock] scanDirectoryMft requested for drive ${cleanLetter}:\\`);
+    return new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error(`ELEVATION_REQUIRED: Access denied. Administrator privileges are required to open NTFS volume handle \\\\.\\${cleanLetter}:`));
+      }, 500);
+    });
+  }
+}
+
+/**
+ * 執行安全清理，將指定的目標路徑移至系統資源回收筒。
+ * @param paths 欲刪除的絕對路徑陣列
+ */
+export async function executeCleanup(paths: string[]): Promise<void> {
+  if (isTauriEnvironment()) {
+    return await invoke<void>('execute_cleanup', { paths });
+  } else {
+    // 瀏覽器預覽環境下模擬清理
+    console.warn('[Mock] executeCleanup requested for paths:', paths);
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve();
+      }, 800);
+    });
+  }
 }

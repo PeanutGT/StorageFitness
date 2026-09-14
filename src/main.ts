@@ -2,6 +2,7 @@
  * StorageFitness - Next-Gen Windows Disk Analyzer & Cleaner
  * 負責人：⚡ Gemini 3.8 Flash
  * 模組：前端主入口與應用程式調度中心 (src/main.ts)
+ * 說明：整合 Standard Scanner 與 NTFS $MFT 極速直讀掃描、UAC 提權監控及全域狀態調度。
  */
 
 import { SidebarComponent } from './components/Sidebar';
@@ -9,7 +10,13 @@ import { TreemapEngine } from './components/Treemap';
 import { CleanerPanelComponent } from './components/CleanerPanel';
 import { SecurityPanelComponent } from './components/SecurityPanel';
 import { SettingsPanelComponent } from './components/SettingsPanel';
-import { scanDirectory, formatBytes, checkPathSafety } from './services/ipc';
+import { 
+  scanDirectory, 
+  scanDirectoryMft, 
+  checkAdminStatus, 
+  formatBytes, 
+  checkPathSafety 
+} from './services/ipc';
 import type { MftRecordSummary } from './shared/ipc-contracts';
 
 class StorageFitnessApp {
@@ -23,6 +30,7 @@ class StorageFitnessApp {
   private currentRootTree: MftRecordSummary | null = null;
   private breadcrumbStack: MftRecordSummary[] = [];
   private isScanning: boolean = false;
+  private isAdminUser: boolean = false;
 
   public getSidebar(): SidebarComponent { return this.sidebar; }
   public getCleanerPanel(): CleanerPanelComponent { return this.cleanerPanel; }
@@ -53,6 +61,9 @@ class StorageFitnessApp {
     this.initComponents();
     this.setupEvents();
     
+    // 初始化系統管理員權限狀態
+    this.initAdminStatus();
+
     // 預設載入示範資料或立即掃描目前路徑
     this.triggerScan(this.pathInput.value);
   }
@@ -76,9 +87,13 @@ class StorageFitnessApp {
   }
 
   private initComponents(): void {
-    // 1. 初始化側邊欄
+    // 1. 初始化側邊欄 (傳入 MFT 深度掃描處理函式)
     const sidebarContainer = document.getElementById('sidebar-container') as HTMLElement;
-    this.sidebar = new SidebarComponent(sidebarContainer, (tabId) => this.switchTab(tabId));
+    this.sidebar = new SidebarComponent(
+      sidebarContainer, 
+      (tabId) => this.switchTab(tabId),
+      (driveLetter) => this.triggerMftScan(driveLetter)
+    );
 
     // 2. 初始化 Treemap 畫布
     const canvas = document.getElementById('treemap-canvas') as HTMLCanvasElement;
@@ -90,6 +105,25 @@ class StorageFitnessApp {
     this.cleanerPanel = new CleanerPanelComponent(this.viewCleaner);
     this.securityPanel = new SecurityPanelComponent(this.viewSecurity);
     this.settingsPanel = new SettingsPanelComponent(this.viewSettings);
+  }
+
+  /**
+   * 初始化檢查是否具備 Windows Administrator 權限
+   */
+  private async initAdminStatus(): Promise<void> {
+    try {
+      this.isAdminUser = await checkAdminStatus();
+      this.sidebar.setAdminStatus(this.isAdminUser);
+
+      const engineTag = document.querySelector('.status-right span:first-child');
+      if (engineTag) {
+        engineTag.textContent = this.isAdminUser 
+          ? '引擎: NTFS $MFT Direct (Admin)' 
+          : '引擎: Standard Win32 API';
+      }
+    } catch (e) {
+      console.warn('Failed to check admin status:', e);
+    }
   }
 
   private switchTab(tabId: string): void {
@@ -116,7 +150,7 @@ class StorageFitnessApp {
   }
 
   private setupEvents(): void {
-    // 掃描按鈕點擊
+    // 掃描按鈕點擊 (標準目錄掃描)
     this.scanBtn.addEventListener('click', () => {
       if (!this.isScanning) {
         this.triggerScan(this.pathInput.value);
@@ -145,7 +179,7 @@ class StorageFitnessApp {
   }
 
   /**
-   * 觸發掃描任務
+   * 觸發標準權限目錄掃描 (Standard Win32 API)
    */
   public async triggerScan(targetPath: string): Promise<void> {
     const trimmedPath = targetPath.trim();
@@ -155,6 +189,7 @@ class StorageFitnessApp {
     this.scanBtn.classList.add('scanning');
     this.scanBtnLabel.textContent = '掃描中...';
     this.statusDot.className = 'status-dot scanning';
+    this.statusDot.style.background = 'var(--accent-cyan)';
     this.statusText.textContent = `正在高速分析目錄: ${trimmedPath}`;
 
     try {
@@ -182,6 +217,7 @@ class StorageFitnessApp {
       this.renderBreadcrumbs();
 
       this.statusDot.className = 'status-dot';
+      this.statusDot.style.background = 'var(--accent-emerald)';
       this.statusText.textContent = `掃描完成！耗時 ${elapsed} ms (共計 ${this.countFiles(tree)} 個節點)`;
     } catch (err: any) {
       console.error('Scan error:', err);
@@ -192,6 +228,62 @@ class StorageFitnessApp {
       this.isScanning = false;
       this.scanBtn.classList.remove('scanning');
       this.scanBtnLabel.textContent = '極速掃描';
+    }
+  }
+
+  /**
+   * 觸發 NTFS $MFT 二進位直讀全磁碟極速解析 (需管理員權限)
+   */
+  public async triggerMftScan(driveLetter: string = 'C'): Promise<void> {
+    if (this.isScanning) return;
+
+    const cleanDrive = (driveLetter.replace(/[^a-zA-Z]/g, '').slice(0, 1) || 'C').toUpperCase();
+    this.isScanning = true;
+    this.sidebar.setScanning(true);
+    this.statusDot.className = 'status-dot scanning';
+    this.statusDot.style.background = 'var(--accent-cyan)';
+    this.statusText.textContent = `⚡ 正在透過 NTFS $MFT 二進位直讀引擎解析全磁碟 (${cleanDrive}:)...`;
+
+    try {
+      const startTime = performance.now();
+      const tree = await scanDirectoryMft(cleanDrive);
+      const elapsed = Math.round(performance.now() - startTime);
+
+      this.currentRootTree = tree;
+      this.breadcrumbStack = [tree];
+
+      // 同步更新輸入框與導航標籤
+      this.pathInput.value = `${cleanDrive}:\\`;
+
+      // 更新指標
+      this.updateMetrics(tree);
+
+      // 觸發清理規則容量精算
+      this.cleanerPanel.analyze(tree);
+
+      // 更新 Treemap 渲染
+      this.treemap.setRootNode(tree);
+      this.renderBreadcrumbs();
+
+      this.statusDot.className = 'status-dot';
+      this.statusDot.style.background = 'var(--accent-emerald)';
+      this.statusText.textContent = `⚡ NTFS $MFT 極速解析完成！耗時 ${elapsed} ms (共計 ${this.countFiles(tree)} 個節點)`;
+    } catch (err: any) {
+      const errMsg = err?.message || String(err);
+      console.error('MFT Scan error:', err);
+
+      if (errMsg.includes('ELEVATION_REQUIRED')) {
+        this.statusDot.className = 'status-dot';
+        this.statusDot.style.background = 'var(--accent-amber)';
+        this.statusText.textContent = `⚠️ 掃描取消：${errMsg.replace('ELEVATION_REQUIRED:', '').trim()}`;
+      } else {
+        this.statusDot.className = 'status-dot';
+        this.statusDot.style.background = 'var(--accent-danger)';
+        this.statusText.textContent = `MFT 掃描發生錯誤: ${errMsg}`;
+      }
+    } finally {
+      this.isScanning = false;
+      this.sidebar.setScanning(false);
     }
   }
 

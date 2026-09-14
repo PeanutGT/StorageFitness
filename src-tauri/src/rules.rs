@@ -4,25 +4,11 @@
 // 規範：與前端 `CleanupRule` 型別保持絕對一致，利用 glob 進行高效節點配對。
 // ============================================================================
 
-use glob::Pattern;
-use serde::{Deserialize, Serialize};
 use std::path::Path;
+use glob::Pattern;
 
 use crate::errors::{EngineError, EngineResult};
-use crate::models::FileNode;
-
-/// 智慧清理規則資料模型 (必須與前端 `CleanupRule` 保持一致)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CleanupRule {
-    pub rule_id: String,
-    pub name: String,
-    pub description: String,
-    pub target_pattern: String,
-    pub risk_level: String,
-    pub estimated_size: Option<u64>,
-    pub default_selected: bool,
-}
+use crate::models::{CleanupAnalysisResult, CleanupRule, FileNode};
 
 pub struct RulesEngine;
 
@@ -58,17 +44,19 @@ impl RulesEngine {
         Ok(rules)
     }
 
-    /// 給定一組規則，在已掃描的磁碟樹狀結構 (FileNode) 中精算每個規則實際匹配的總容量。
-    /// 回傳一個更新了 `estimated_size` 的新規則清單。
-    pub fn analyze_cleanup_targets(tree: &FileNode, rules: &[CleanupRule]) -> Vec<CleanupRule> {
+    /// 給定一組規則，在已掃描的磁碟樹狀結構 (FileNode) 中精算每個規則實際匹配的總容量，並收集目標路徑。
+    /// 回傳一個 `CleanupAnalysisResult`，包含更新了 `estimated_size` 的新規則清單與 `matched_paths`。
+    pub fn analyze_cleanup_targets(tree: &FileNode, rules: &[CleanupRule]) -> CleanupAnalysisResult {
         let mut analyzed_rules = Vec::with_capacity(rules.len());
+        let mut matched_paths = std::collections::HashMap::new();
 
         for rule in rules {
             let mut updated_rule = rule.clone();
             let pattern_str = &rule.target_pattern;
             
-            // 將前綴 **/ 替換為有效格式，或者直接使用 glob 解析
-            let compiled_pattern = match Pattern::new(pattern_str) {
+            // 將 pattern 也做一層保險，統一使用 `/`
+            let normalized_pattern = pattern_str.replace("\\", "/");
+            let compiled_pattern = match Pattern::new(&normalized_pattern) {
                 Ok(p) => p,
                 Err(_) => {
                     // 若規則解析失敗，該項目估算大小為 0
@@ -79,29 +67,37 @@ impl RulesEngine {
             };
 
             let mut total_size = 0;
-            Self::traverse_and_match(tree, &compiled_pattern, &mut total_size);
+            let mut current_matched = Vec::new();
+            Self::traverse_and_match(tree, &compiled_pattern, &mut total_size, &mut current_matched);
             
             updated_rule.estimated_size = Some(total_size);
+            matched_paths.insert(rule.rule_id.clone(), current_matched);
             analyzed_rules.push(updated_rule);
         }
 
-        analyzed_rules
+        CleanupAnalysisResult {
+            rules: analyzed_rules,
+            matched_paths,
+        }
     }
 
     /// 遞迴遍歷檔案樹。
     /// 效能優化：若資料夾路徑已符合 pattern (例如 `**/node_modules`)，
-    /// 則直接累加其 `size_bytes` 並停止向下遍歷，避免重複計算其子節點大小。
-    fn traverse_and_match(node: &FileNode, pattern: &Pattern, total_size: &mut u64) {
-        let path = Path::new(&node.path);
+    /// 則直接將其路徑加入清單並累加其 `size_bytes`，停止向下遍歷。
+    fn traverse_and_match(node: &FileNode, pattern: &Pattern, total_size: &mut u64, current_matched: &mut Vec<String>) {
+        // 路徑正規化：將 Windows 的 `\` 轉換為 Unix 的 `/` 以符合 glob 預期
+        let normalized_path = node.path.replace("\\", "/");
+        let path = Path::new(&normalized_path);
 
         if pattern.matches_path(path) {
             *total_size += node.size_bytes;
-            return;
+            current_matched.push(node.path.clone()); // 儲存原始 Windows 路徑供後續刪除使用
+            return; // 已經匹配到，不繼續深入子節點
         }
 
         if let Some(children) = &node.children {
             for child in children {
-                Self::traverse_and_match(child, pattern, total_size);
+                Self::traverse_and_match(child, pattern, total_size, current_matched);
             }
         }
     }

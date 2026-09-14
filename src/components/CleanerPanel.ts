@@ -5,7 +5,7 @@
  */
 
 import type { CleanupRule, MftRecordSummary } from '../shared/ipc-contracts';
-import { formatBytes, updateCleanupRules, analyzeCleanupTargets } from '../services/ipc';
+import { formatBytes, updateCleanupRules, analyzeCleanupTargets, executeCleanup } from '../services/ipc';
 
 export const DEFAULT_CLEANUP_RULES: CleanupRule[] = [
   {
@@ -59,6 +59,7 @@ export class CleanerPanelComponent {
   private container: HTMLElement;
   private rules: CleanupRule[] = DEFAULT_CLEANUP_RULES;
   private selectedRuleIds: Set<string> = new Set();
+  private matchedPaths: Record<string, string[]> = {};
   private isUpdating: boolean = false;
   private isAnalyzing: boolean = false;
 
@@ -91,7 +92,18 @@ export class CleanerPanelComponent {
     this.isAnalyzing = true;
     this.render();
     try {
-      this.rules = await analyzeCleanupTargets(tree, this.rules);
+      const result = await analyzeCleanupTargets(tree, this.rules);
+      this.rules = result.rules;
+      this.matchedPaths = result.matchedPaths;
+      
+      console.log('--- 🧹 清理規則分析完成 ---');
+      Object.entries(result.matchedPaths).forEach(([ruleId, paths]) => {
+        if (paths.length > 0) {
+          console.log(`[${ruleId}] 匹配到 ${paths.length} 個目標，前 3 項:`, paths.slice(0, 3));
+        }
+      });
+      console.log('----------------------------');
+      
     } catch (e) {
       console.error('Failed to analyze rules:', e);
     } finally {
@@ -255,8 +267,39 @@ export class CleanerPanelComponent {
     // 清理按鈕
     const cleanBtn = this.container.querySelector('#btn-clean-now');
     if (cleanBtn) {
-      cleanBtn.addEventListener('click', () => {
-        alert(`已成功排程安全清理任務！預計釋放 ${formatBytes(totalSize)} 空間。\n(為保護您的檔案，所有項目皆會優先置入 Windows 資源回收筒)`);
+      cleanBtn.addEventListener('click', async () => {
+        let pathsToClean: string[] = [];
+        this.selectedRuleIds.forEach(ruleId => {
+          if (this.matchedPaths[ruleId]) {
+            pathsToClean = pathsToClean.concat(this.matchedPaths[ruleId]);
+          }
+        });
+
+        if (pathsToClean.length === 0) {
+          alert('沒有選取任何可清理的目標檔案！請先勾選規則或確認掃描結果。');
+          return;
+        }
+
+        const btnElement = cleanBtn as HTMLButtonElement;
+        const originalText = btnElement.textContent;
+        btnElement.textContent = '清理中...';
+        btnElement.disabled = true;
+
+        try {
+          await executeCleanup(pathsToClean);
+          alert(`✅ 已成功將 ${pathsToClean.length} 個目標移至系統資源回收筒！\n預計釋放 ${formatBytes(totalSize)} 的磁碟空間。`);
+          
+          // 清理後，清空已選取狀態並通知使用者可以重新掃描
+          this.selectedRuleIds.clear();
+          this.matchedPaths = {};
+          this.render();
+        } catch (e: any) {
+          console.error(e);
+          alert('清理過程中發生錯誤:\n' + (e?.message || e));
+        } finally {
+          btnElement.disabled = false;
+          btnElement.textContent = originalText || '開始安全清理 (移至資源回收筒)';
+        }
       });
     }
   }
