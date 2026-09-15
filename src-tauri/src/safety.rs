@@ -27,11 +27,7 @@ const PROTECTED_PREFIXES: &[&str] = &[
 ];
 
 /// 系統核心保護檔案名稱（位於系統磁碟機根目錄）。
-const PROTECTED_ROOT_FILES: &[&str] = &[
-    "pagefile.sys",
-    "hiberfil.sys",
-    "swapfile.sys",
-];
+const PROTECTED_ROOT_FILES: &[&str] = &["pagefile.sys", "hiberfil.sys", "swapfile.sys"];
 
 /// 取得系統磁碟機代號（例如 "C:"）。
 /// 優先讀取 `%SystemDrive%` 環境變數，若不存在則回退至 "C:"。
@@ -64,9 +60,7 @@ pub fn check_path_safety(path: &Path) -> EngineResult<()> {
     // 檢查系統磁碟機根目錄下的保護檔案
     for protected_file in PROTECTED_ROOT_FILES {
         let full_path = format!("{}\\{}", system_drive, protected_file);
-        if path_str
-            .eq_ignore_ascii_case(&full_path)
-        {
+        if path_str.eq_ignore_ascii_case(&full_path) {
             return Err(EngineError::ProtectedPathViolation {
                 path: path_str.to_string(),
             });

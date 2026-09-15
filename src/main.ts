@@ -6,25 +6,36 @@
  */
 
 import { SidebarComponent } from './components/Sidebar';
-import { TreemapEngine } from './components/Treemap';
+import { TreemapEngine } from './components/visualizations/TreemapEngine';
+import { ListViewEngine } from './components/visualizations/ListViewEngine';
+import type { IVisualizationEngine } from './components/visualizations/IVisualizationEngine';
 import { CleanerPanelComponent } from './components/CleanerPanel';
-import { SecurityPanelComponent } from './components/SecurityPanel';
+import { HealthPanelComponent } from './components/HealthPanel';
 import { SettingsPanelComponent } from './components/SettingsPanel';
+import { AppsPanelComponent } from './components/AppsPanel';
+
 import { 
   scanDirectory, 
   scanDirectoryMft, 
   checkAdminStatus, 
   formatBytes, 
-  checkPathSafety 
+  checkPathSafety,
+  openDirectoryDialog
 } from './services/ipc';
 import type { MftRecordSummary } from './shared/ipc-contracts';
 
+export type ViewMode = 'treemap' | 'list';
+
 class StorageFitnessApp {
   private sidebar!: SidebarComponent;
-  private treemap!: TreemapEngine;
+  private treemapEngine!: TreemapEngine;
+  private listViewEngine!: ListViewEngine;
+  private currentViewMode: ViewMode = 'treemap';
   private cleanerPanel!: CleanerPanelComponent;
-  private securityPanel!: SecurityPanelComponent;
+  private healthPanel!: HealthPanelComponent;
   private settingsPanel!: SettingsPanelComponent;
+  private appsPanel!: AppsPanelComponent;
+
 
   // 狀態管理
   private currentRootTree: MftRecordSummary | null = null;
@@ -34,15 +45,23 @@ class StorageFitnessApp {
 
   public getSidebar(): SidebarComponent { return this.sidebar; }
   public getCleanerPanel(): CleanerPanelComponent { return this.cleanerPanel; }
-  public getSecurityPanel(): SecurityPanelComponent { return this.securityPanel; }
+  public getHealthPanel(): HealthPanelComponent { return this.healthPanel; }
   public getSettingsPanel(): SettingsPanelComponent { return this.settingsPanel; }
+  public getAppsPanel(): AppsPanelComponent { return this.appsPanel; }
+
   public getCurrentRootTree(): MftRecordSummary | null { return this.currentRootTree; }
+  public getTreemapEngine(): TreemapEngine { return this.treemapEngine; }
+  public getListViewEngine(): ListViewEngine { return this.listViewEngine; }
+  public getCurrentViewMode(): ViewMode { return this.currentViewMode; }
 
   // DOM 元素引用
   private pathInput!: HTMLInputElement;
   private scanBtn!: HTMLButtonElement;
   private scanBtnLabel!: HTMLElement;
+  private visualizerHeaderBar!: HTMLElement;
   private breadcrumbBar!: HTMLElement;
+  private btnViewTreemap!: HTMLButtonElement;
+  private btnViewList!: HTMLButtonElement;
   private metricsStrip!: HTMLElement;
   private metricTotalSize!: HTMLElement;
   private metricFilesCount!: HTMLElement;
@@ -53,8 +72,13 @@ class StorageFitnessApp {
   // 各分頁視圖
   private viewVisualizer!: HTMLElement;
   private viewCleaner!: HTMLElement;
-  private viewSecurity!: HTMLElement;
+  private viewHealth!: HTMLElement;
   private viewSettings!: HTMLElement;
+  private viewApps!: HTMLElement;
+
+  
+  // 歡迎畫面
+  private welcomeScreen!: HTMLElement;
 
   constructor() {
     this.initDOMReferences();
@@ -63,16 +87,16 @@ class StorageFitnessApp {
     
     // 初始化系統管理員權限狀態
     this.initAdminStatus();
-
-    // 預設載入示範資料或立即掃描目前路徑
-    this.triggerScan(this.pathInput.value);
   }
 
   private initDOMReferences(): void {
     this.pathInput = document.getElementById('target-path-input') as HTMLInputElement;
     this.scanBtn = document.getElementById('btn-start-scan') as HTMLButtonElement;
     this.scanBtnLabel = document.getElementById('scan-btn-label') as HTMLElement;
+    this.visualizerHeaderBar = document.getElementById('visualizer-header-bar') as HTMLElement;
     this.breadcrumbBar = document.getElementById('breadcrumb-bar') as HTMLElement;
+    this.btnViewTreemap = document.getElementById('btn-view-treemap') as HTMLButtonElement;
+    this.btnViewList = document.getElementById('btn-view-list') as HTMLButtonElement;
     this.metricsStrip = document.getElementById('metrics-strip') as HTMLElement;
     this.metricTotalSize = document.getElementById('metric-total-size') as HTMLElement;
     this.metricFilesCount = document.getElementById('metric-files-count') as HTMLElement;
@@ -82,8 +106,11 @@ class StorageFitnessApp {
 
     this.viewVisualizer = document.getElementById('view-visualizer') as HTMLElement;
     this.viewCleaner = document.getElementById('view-cleaner') as HTMLElement;
-    this.viewSecurity = document.getElementById('view-security') as HTMLElement;
+    this.viewHealth = document.getElementById('view-health') as HTMLElement;
     this.viewSettings = document.getElementById('view-settings') as HTMLElement;
+    this.viewApps = document.getElementById('view-apps') as HTMLElement;
+
+    this.welcomeScreen = document.getElementById('welcome-screen') as HTMLElement;
   }
 
   private initComponents(): void {
@@ -95,16 +122,76 @@ class StorageFitnessApp {
       (driveLetter) => this.triggerMftScan(driveLetter)
     );
 
-    // 2. 初始化 Treemap 畫布
+    // 2. 初始化視覺化引擎 (Treemap + ListView)
     const canvas = document.getElementById('treemap-canvas') as HTMLCanvasElement;
     const tooltip = document.getElementById('treemap-tooltip') as HTMLElement;
-    this.treemap = new TreemapEngine(canvas, tooltip);
-    this.treemap.setOnNodeClick((node) => this.handleNodeClick(node));
+    const legend = document.getElementById('treemap-legend') as HTMLElement;
+    const listviewContainer = document.getElementById('listview-container') as HTMLElement;
+
+    this.treemapEngine = new TreemapEngine(canvas, tooltip, legend);
+    this.treemapEngine.setOnNodeClick((node) => this.handleNodeClick(node));
+
+    this.listViewEngine = new ListViewEngine(listviewContainer);
+    this.listViewEngine.setOnNodeClick((node) => this.handleNodeClick(node));
+
+    // 讀取偏好視圖模式 (預設為 'treemap')
+    const savedMode = localStorage.getItem('preferred-view-mode') as ViewMode | null;
+    const initialMode: ViewMode = (savedMode === 'list' || savedMode === 'treemap') ? savedMode : 'treemap';
+    this.setViewMode(initialMode, false);
 
     // 3. 初始化子面板
     this.cleanerPanel = new CleanerPanelComponent(this.viewCleaner);
-    this.securityPanel = new SecurityPanelComponent(this.viewSecurity);
+    this.healthPanel = new HealthPanelComponent(this.viewHealth);
     this.settingsPanel = new SettingsPanelComponent(this.viewSettings);
+    this.appsPanel = new AppsPanelComponent(this.viewApps);
+
+  }
+
+  /**
+   * 切換視覺化檢視模式 (Treemap / ListView) 並持久化偏好設定
+   */
+  public setViewMode(mode: ViewMode, savePreference: boolean = true): void {
+    this.currentViewMode = mode;
+
+    if (!this.currentRootTree) {
+      // 若尚未進行任何掃描，顯示歡迎面板，並隱藏圖表
+      if (this.welcomeScreen) this.welcomeScreen.style.display = 'flex';
+      this.treemapEngine.hide();
+      this.listViewEngine.hide();
+    } else {
+      // 有資料時隱藏歡迎面板，並顯示對應視圖
+      if (this.welcomeScreen) this.welcomeScreen.style.display = 'none';
+
+      if (mode === 'treemap') {
+        this.btnViewTreemap.classList.add('active');
+        this.btnViewList.classList.remove('active');
+        this.listViewEngine.hide();
+        this.treemapEngine.show();
+      } else {
+        this.btnViewList.classList.add('active');
+        this.btnViewTreemap.classList.remove('active');
+        this.treemapEngine.hide();
+        this.listViewEngine.show();
+      }
+
+      const activeNode = this.breadcrumbStack[this.breadcrumbStack.length - 1] || this.currentRootTree;
+      if (activeNode) {
+        this.getActiveEngine().setRootNode(activeNode);
+        this.getActiveEngine().resize();
+      }
+    }
+
+    if (savePreference) {
+      try {
+        localStorage.setItem('preferred-view-mode', mode);
+      } catch (e) {
+        console.warn('Failed to save preferred view mode:', e);
+      }
+    }
+  }
+
+  public getActiveEngine(): IVisualizationEngine {
+    return this.currentViewMode === 'treemap' ? this.treemapEngine : this.listViewEngine;
   }
 
   /**
@@ -130,21 +217,30 @@ class StorageFitnessApp {
     // 隱藏所有視圖
     this.viewVisualizer.style.display = 'none';
     this.viewCleaner.style.display = 'none';
-    this.viewSecurity.style.display = 'none';
+    this.viewHealth.style.display = 'none';
     this.viewSettings.style.display = 'none';
+    this.viewApps.style.display = 'none';
+    this.appsPanel.hide();
 
     // 依據選中項目顯示對應視圖
     if (tabId === 'visualizer') {
       this.viewVisualizer.style.display = 'block';
-      this.breadcrumbBar.style.display = 'flex';
+      this.visualizerHeaderBar.style.display = 'flex';
       this.metricsStrip.style.display = 'flex';
-      this.treemap.resize();
+      this.getActiveEngine().resize();
     } else {
-      this.breadcrumbBar.style.display = 'none';
+      this.visualizerHeaderBar.style.display = 'none';
       this.metricsStrip.style.display = 'none';
 
       if (tabId === 'cleaner') this.viewCleaner.style.display = 'block';
-      if (tabId === 'security') this.viewSecurity.style.display = 'block';
+      if (tabId === 'health') {
+        this.healthPanel.show();
+      }
+      if (tabId === 'apps') {
+        this.appsPanel.show();
+      } else {
+        this.appsPanel.hide();
+      }
       if (tabId === 'settings') this.viewSettings.style.display = 'block';
     }
   }
@@ -175,6 +271,47 @@ class StorageFitnessApp {
           this.triggerScan(drive);
         }
       });
+    });
+
+    // 歡迎面板的大按鈕
+    document.querySelectorAll('.btn-scan-drive').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.getAttribute('data-target');
+        if (target && !this.isScanning) {
+          this.pathInput.value = target;
+          this.triggerScan(target);
+        }
+      });
+    });
+
+    // 瀏覽選擇資料夾圖示
+    const handleBrowseClick = async () => {
+      if (this.isScanning) return;
+      const selectedPath = await openDirectoryDialog();
+      if (selectedPath) {
+        this.pathInput.value = selectedPath;
+        this.triggerScan(selectedPath);
+      }
+    };
+    document.getElementById('btn-browse-folder')?.addEventListener('click', handleBrowseClick);
+    document.getElementById('btn-welcome-browse')?.addEventListener('click', handleBrowseClick);
+
+    // 視覺化視圖模式切換
+    this.btnViewTreemap.addEventListener('click', () => {
+      if (this.currentViewMode !== 'treemap') {
+        this.setViewMode('treemap', true);
+      }
+    });
+
+    this.btnViewList.addEventListener('click', () => {
+      if (this.currentViewMode !== 'list') {
+        this.setViewMode('list', true);
+      }
+    });
+
+    // 視窗自適應
+    window.addEventListener('resize', () => {
+      this.getActiveEngine().resize();
     });
   }
 
@@ -212,9 +349,11 @@ class StorageFitnessApp {
       // 觸發清理規則容量精算
       this.cleanerPanel.analyze(tree);
 
-      // 更新 Treemap 渲染
-      this.treemap.setRootNode(tree);
+      // 同步更新雙視覺化引擎
+      this.treemapEngine.setRootNode(tree);
+      this.listViewEngine.setRootNode(tree);
       this.renderBreadcrumbs();
+      this.setViewMode(this.currentViewMode, false);
 
       this.statusDot.className = 'status-dot';
       this.statusDot.style.background = 'var(--accent-emerald)';
@@ -261,9 +400,11 @@ class StorageFitnessApp {
       // 觸發清理規則容量精算
       this.cleanerPanel.analyze(tree);
 
-      // 更新 Treemap 渲染
-      this.treemap.setRootNode(tree);
+      // 同步更新雙視覺化引擎
+      this.treemapEngine.setRootNode(tree);
+      this.listViewEngine.setRootNode(tree);
       this.renderBreadcrumbs();
+      this.setViewMode(this.currentViewMode, false);
 
       this.statusDot.className = 'status-dot';
       this.statusDot.style.background = 'var(--accent-emerald)';
@@ -293,7 +434,8 @@ class StorageFitnessApp {
   private handleNodeClick(node: MftRecordSummary): void {
     if (node.isDirectory && node.children && node.children.length > 0) {
       this.breadcrumbStack.push(node);
-      this.treemap.setRootNode(node);
+      this.treemapEngine.setRootNode(node);
+      this.listViewEngine.setRootNode(node);
       this.renderBreadcrumbs();
       this.updateMetrics(node);
     }
@@ -315,7 +457,8 @@ class StorageFitnessApp {
         if (!isLast) {
           this.breadcrumbStack = this.breadcrumbStack.slice(0, index + 1);
           const targetNode = this.breadcrumbStack[this.breadcrumbStack.length - 1];
-          this.treemap.setRootNode(targetNode);
+          this.treemapEngine.setRootNode(targetNode);
+          this.listViewEngine.setRootNode(targetNode);
           this.renderBreadcrumbs();
           this.updateMetrics(targetNode);
         }

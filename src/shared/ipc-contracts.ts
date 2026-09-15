@@ -94,3 +94,18 @@ export const SYSTEM_PROTECTED_WHITELIST = [
   /^C:\\Boot/i,
   /^C:\\EFI/i,
 ];
+
+// ==========================================
+// 5. 應用程式管理模型 (Installed Applications)
+// ==========================================
+
+export interface InstalledApp {
+  id: string;
+  displayName: string;
+  publisher?: string;
+  displayVersion?: string;
+  installDate?: string;
+  estimatedSizeBytes?: number;
+  uninstallString?: string;
+  installLocation?: string;
+}

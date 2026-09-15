@@ -5,21 +5,23 @@
 //       將掃描功能暴露給前端 WebView。
 // ============================================================================
 
+pub mod cleaner;
 pub mod errors;
 pub mod mft;
 pub mod mft_ipc;
 pub mod models;
 pub mod rules;
 pub mod safety;
+pub mod hardware;
 pub mod scanner;
-pub mod cleaner;
+pub mod apps;
 
 use std::path::PathBuf;
 
 use crate::errors::EngineError;
+use crate::mft::{MftScanner, MftScannerConfig};
 use crate::models::ScanProgressEvent;
 use crate::scanner::{DiskScanner, StandardScanner};
-use crate::mft::{MftScanner, MftScannerConfig};
 
 // ==========================================
 // Tauri Commands (前端 IPC 橋接)
@@ -64,9 +66,10 @@ fn scan_directory(path: String) -> Result<models::FileNode, String> {
 
     match result {
         Ok(tree) => Ok(tree),
-        Err(EngineError::ProtectedPathViolation { path }) => {
-            Err(format!("Access denied: '{}' is a protected system path", path))
-        }
+        Err(EngineError::ProtectedPathViolation { path }) => Err(format!(
+            "Access denied: '{}' is a protected system path",
+            path
+        )),
         Err(e) => Err(e.to_string()),
     }
 }
@@ -170,6 +173,26 @@ fn check_admin_status() -> bool {
     MftScanner::check_admin_privilege().unwrap_or(false)
 }
 
+/// 取得硬體健康資訊 (S.M.A.R.T.)
+#[tauri::command]
+fn get_disk_health() -> Result<Vec<models::DiskHealthMetrics>, String> {
+    match hardware::HardwareEngine::get_disk_health() {
+        Ok(metrics) => Ok(metrics),
+        Err(EngineError::InsufficientPrivilege(_)) => Err("ELEVATION_REQUIRED".to_string()),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
+fn get_installed_apps() -> Result<Vec<models::InstalledApp>, String> {
+    apps::AppsEngine::get_installed_apps()
+}
+
+#[tauri::command]
+fn uninstall_app(uninstall_string: String) -> Result<(), String> {
+    apps::AppsEngine::uninstall_app(&uninstall_string)
+}
+
 // ==========================================
 // Tauri Application Bootstrap
 // ==========================================
@@ -177,6 +200,7 @@ fn check_admin_status() -> bool {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             execute_cleanup,
@@ -187,6 +211,9 @@ pub fn run() {
             analyze_cleanup_targets,
             scan_directory_mft,
             check_admin_status,
+            get_disk_health,
+            get_installed_apps,
+            uninstall_app,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

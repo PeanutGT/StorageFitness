@@ -50,18 +50,16 @@ impl Default for MftScannerConfig {
 
 #[cfg(windows)]
 mod win32 {
-    use windows::Win32::Foundation::{CloseHandle, HANDLE};
-    use windows::Win32::Storage::FileSystem::{
-        CreateFileW, ReadFile, FILE_SHARE_READ, FILE_SHARE_WRITE,
-        OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS,
-    };
-    use windows::Win32::Security::{
-        CheckTokenMembership, PSID,
-        AllocateAndInitializeSid, FreeSid,
-        SID_IDENTIFIER_AUTHORITY,
-    };
-    use windows::core::PCWSTR;
     use crate::errors::{EngineError, EngineResult};
+    use windows::core::PCWSTR;
+    use windows::Win32::Foundation::{CloseHandle, HANDLE};
+    use windows::Win32::Security::{
+        AllocateAndInitializeSid, CheckTokenMembership, FreeSid, PSID, SID_IDENTIFIER_AUTHORITY,
+    };
+    use windows::Win32::Storage::FileSystem::{
+        CreateFileW, ReadFile, FILE_FLAG_BACKUP_SEMANTICS, FILE_SHARE_READ, FILE_SHARE_WRITE,
+        OPEN_EXISTING,
+    };
 
     /// RAII wrapper for Win32 HANDLE.
     /// Automatically calls CloseHandle on Drop, preventing resource leaks.
@@ -120,7 +118,8 @@ mod win32 {
                 FILE_FLAG_BACKUP_SEMANTICS,
                 None,
             )
-        }.map_err(|e| EngineError::Win32Error {
+        }
+        .map_err(|e| EngineError::Win32Error {
             operation: "CreateFileW (volume)".to_string(),
             message: e.to_string(),
         })?;
@@ -143,14 +142,7 @@ mod win32 {
         //   - A pointer to bytes_read for actual read count
         //   - No overlapped I/O (synchronous read)
         // The buffer is pre-allocated by the caller and bytes_read is stack-allocated.
-        let success = unsafe {
-            ReadFile(
-                handle.raw(),
-                Some(buffer),
-                Some(&mut bytes_read),
-                None,
-            )
-        };
+        let success = unsafe { ReadFile(handle.raw(), Some(buffer), Some(&mut bytes_read), None) };
 
         match success {
             Ok(()) => Ok(bytes_read),
@@ -167,9 +159,7 @@ mod win32 {
 
         // SAFETY: SetFilePointerEx is called with a valid HANDLE and a byte offset.
         // FILE_BEGIN means absolute positioning from the start of the volume.
-        let result = unsafe {
-            SetFilePointerEx(handle.raw(), offset, None, FILE_BEGIN)
-        };
+        let result = unsafe { SetFilePointerEx(handle.raw(), offset, None, FILE_BEGIN) };
 
         match result {
             Ok(()) => Ok(()),
@@ -204,7 +194,12 @@ mod win32 {
                 2,
                 SECURITY_BUILTIN_DOMAIN_RID,
                 DOMAIN_ALIAS_RID_ADMINS,
-                0, 0, 0, 0, 0, 0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
                 &mut admin_group,
             )
         };
@@ -221,13 +216,13 @@ mod win32 {
         // SAFETY: CheckTokenMembership checks the current process token against
         // the Administrators SID. We pass None for the token handle to use the
         // current effective token. admin_group is a valid SID from AllocateAndInitializeSid.
-        let check_result = unsafe {
-            CheckTokenMembership(None, admin_group, &mut is_member)
-        };
+        let check_result = unsafe { CheckTokenMembership(None, admin_group, &mut is_member) };
 
         // SAFETY: FreeSid releases the SID allocated by AllocateAndInitializeSid.
         // This is called regardless of CheckTokenMembership success/failure.
-        unsafe { let _ = FreeSid(admin_group); }
+        unsafe {
+            let _ = FreeSid(admin_group);
+        }
 
         match check_result {
             Ok(()) => Ok(is_member.as_bool()),
@@ -284,17 +279,21 @@ impl NtfsBootSector {
         let bytes_per_sector = u16::from_le_bytes([buffer[0x0B], buffer[0x0C]]);
         let sectors_per_cluster = buffer[0x0D];
         let mft_cluster_number = u64::from_le_bytes([
-            buffer[0x30], buffer[0x31], buffer[0x32], buffer[0x33],
-            buffer[0x34], buffer[0x35], buffer[0x36], buffer[0x37],
+            buffer[0x30],
+            buffer[0x31],
+            buffer[0x32],
+            buffer[0x33],
+            buffer[0x34],
+            buffer[0x35],
+            buffer[0x36],
+            buffer[0x37],
         ]);
 
         // MFT Record size: byte at 0x40 is signed.
         // If positive: clusters per record. If negative: 2^|value| bytes per record.
         let clusters_per_record = buffer[0x40] as i8;
         let mft_record_size = if clusters_per_record > 0 {
-            (clusters_per_record as u32)
-                * (sectors_per_cluster as u32)
-                * (bytes_per_sector as u32)
+            (clusters_per_record as u32) * (sectors_per_cluster as u32) * (bytes_per_sector as u32)
         } else {
             // Negative value means 2^|value| bytes
             1u32 << (clusters_per_record.unsigned_abs())
@@ -310,9 +309,7 @@ impl NtfsBootSector {
 
     /// 計算 $MFT 在磁碟上的絕對位元組偏移量。
     fn mft_byte_offset(&self) -> u64 {
-        self.mft_cluster_number
-            * (self.sectors_per_cluster as u64)
-            * (self.bytes_per_sector as u64)
+        self.mft_cluster_number * (self.sectors_per_cluster as u64) * (self.bytes_per_sector as u64)
     }
 }
 
@@ -438,7 +435,8 @@ fn parse_mft_record(buffer: &[u8], record_size: u32, record_index: u64) -> Optio
                     // Prefer Win32 (0) or Win32+DOS (3) names over pure DOS (2) names
                     let dominated = match best_namespace {
                         Some(existing) => {
-                            namespace == FILE_NAME_NAMESPACE_DOS && existing != FILE_NAME_NAMESPACE_DOS
+                            namespace == FILE_NAME_NAMESPACE_DOS
+                                && existing != FILE_NAME_NAMESPACE_DOS
                         }
                         None => false,
                     };
@@ -532,8 +530,7 @@ fn parse_file_name_attr(attr_buffer: &[u8]) -> Option<(String, u64, u8)> {
 
     // Parent directory MFT reference (first 6 bytes of 8-byte reference)
     let parent_ref = u64::from_le_bytes([
-        content[0], content[1], content[2], content[3],
-        content[4], content[5], 0, 0,
+        content[0], content[1], content[2], content[3], content[4], content[5], 0, 0,
     ]) & 0x0000_FFFF_FFFF_FFFF; // Mask to 48-bit record number
 
     let name_length = content[0x40] as usize;
@@ -584,10 +581,7 @@ fn apply_fixup_array(buffer: &mut [u8], record_size: u32) -> bool {
     }
 
     // Read the expected signature (first word of fixup array)
-    let signature = u16::from_le_bytes([
-        buffer[fixup_offset],
-        buffer[fixup_offset + 1],
-    ]);
+    let signature = u16::from_le_bytes([buffer[fixup_offset], buffer[fixup_offset + 1]]);
 
     let sector_size: usize = 512; // Standard NTFS sector size
 
@@ -729,11 +723,9 @@ impl MftScanner {
                     break;
                 }
 
-                if let Some(record) = parse_mft_record(
-                    &batch_buffer[start..end],
-                    record_size,
-                    record_index,
-                ) {
+                if let Some(record) =
+                    parse_mft_record(&batch_buffer[start..end], record_size, record_index)
+                {
                     all_records.push(record);
                     total_parsed += 1;
                 }
@@ -1073,7 +1065,7 @@ mod tests {
             buf[attr_offset + 4..attr_offset + 8]
                 .copy_from_slice(&(data_attr_aligned as u32).to_le_bytes());
             buf[attr_offset + 8] = 0; // Resident
-            // Content size at 0x10
+                                      // Content size at 0x10
             buf[attr_offset + 0x10..attr_offset + 0x14]
                 .copy_from_slice(&(size as u32).to_le_bytes());
 
@@ -1253,7 +1245,10 @@ mod tests {
         assert_eq!(children[0].name, "Users");
         assert_eq!(children[0].size_bytes, 8_000_000);
 
-        let users_children = children[0].children.as_ref().expect("Users should have children");
+        let users_children = children[0]
+            .children
+            .as_ref()
+            .expect("Users should have children");
         assert_eq!(users_children.len(), 2);
         // Sorted by size descending
         assert_eq!(users_children[0].name, "document.pdf");
@@ -1290,7 +1285,10 @@ mod tests {
         let junction = &children[0];
         assert_eq!(junction.name, "junction_dir");
         assert!(junction.is_reparse_point);
-        assert!(junction.children.is_none(), "Reparse point must have no children");
+        assert!(
+            junction.children.is_none(),
+            "Reparse point must have no children"
+        );
     }
 
     #[test]

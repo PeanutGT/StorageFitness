@@ -34,16 +34,16 @@ const PIPE_RETRY_INTERVAL_MS: u64 = 200;
 /// 4. 反序列化 JSON 為 FileNode 並回傳
 pub fn request_mft_scan_via_daemon(drive_letter: char) -> Result<FileNode, EngineError> {
     let pipe_name = generate_pipe_name();
-    
+
     // 取得 Daemon 執行檔路徑
     let daemon_path = find_daemon_executable()?;
-    
+
     // 透過 UAC 提權啟動 Daemon
     launch_elevated_daemon(&daemon_path, &pipe_name, drive_letter)?;
-    
+
     // 連接 Named Pipe 並讀取結果
     let json_data = connect_and_read_pipe(&pipe_name)?;
-    
+
     // 解析 JSON 結果
     parse_daemon_response(&json_data)
 }
@@ -65,7 +65,7 @@ fn generate_pipe_name() -> String {
 /// 優先從當前執行檔所在目錄找，其次從 target/debug 目錄找。
 fn find_daemon_executable() -> Result<PathBuf, EngineError> {
     let daemon_name = "storage-fitness-daemon.exe";
-    
+
     // 策略 1：與主程式同目錄（生產環境）
     if let Ok(current_exe) = std::env::current_exe() {
         if let Some(exe_dir) = current_exe.parent() {
@@ -75,7 +75,7 @@ fn find_daemon_executable() -> Result<PathBuf, EngineError> {
             }
         }
     }
-    
+
     // 策略 2：cargo target/debug 目錄（開發環境）
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
     let debug_candidate = PathBuf::from(manifest_dir)
@@ -85,11 +85,14 @@ fn find_daemon_executable() -> Result<PathBuf, EngineError> {
     if debug_candidate.exists() {
         return Ok(debug_candidate);
     }
-    
+
     // 策略 3：上一層的 target/debug（Tauri 建置結構）
-    let parent_target = PathBuf::from(manifest_dir)
-        .parent()
-        .map(|p| p.join("src-tauri").join("target").join("debug").join(daemon_name));
+    let parent_target = PathBuf::from(manifest_dir).parent().map(|p| {
+        p.join("src-tauri")
+            .join("target")
+            .join("debug")
+            .join(daemon_name)
+    });
     if let Some(ref candidate) = parent_target {
         if candidate.exists() {
             return Ok(candidate.clone());
@@ -137,12 +140,12 @@ fn launch_elevated_daemon(
 
     let result = unsafe {
         ShellExecuteW(
-            None,                           // hwnd
-            PCWSTR(verb.as_ptr()),           // lpOperation = "runas"
-            PCWSTR(exe_wide.as_ptr()),       // lpFile
-            PCWSTR(params_wide.as_ptr()),    // lpParameters
-            PCWSTR::null(),                  // lpDirectory
-            SW_HIDE,                         // nShowCmd (隱藏 Daemon 視窗)
+            None,                         // hwnd
+            PCWSTR(verb.as_ptr()),        // lpOperation = "runas"
+            PCWSTR(exe_wide.as_ptr()),    // lpFile
+            PCWSTR(params_wide.as_ptr()), // lpParameters
+            PCWSTR::null(),               // lpDirectory
+            SW_HIDE,                      // nShowCmd (隱藏 Daemon 視窗)
         )
     };
 
@@ -161,8 +164,7 @@ fn launch_elevated_daemon(
             operation: "ShellExecuteW (runas)".to_string(),
             message: format!(
                 "Failed to launch elevated daemon. Error code: {}. Path: {:?}",
-                result_code,
-                daemon_path
+                result_code, daemon_path
             ),
         });
     }
@@ -217,10 +219,12 @@ fn connect_and_read_pipe(pipe_name: &str) -> Result<String, EngineError> {
 
     // 讀取全部資料（Daemon 寫完就會關閉 Pipe，觸發 EOF）
     let mut buffer = String::new();
-    pipe_file.read_to_string(&mut buffer).map_err(|e| EngineError::IoError {
-        path: pipe_name.to_string(),
-        source: e,
-    })?;
+    pipe_file
+        .read_to_string(&mut buffer)
+        .map_err(|e| EngineError::IoError {
+            path: pipe_name.to_string(),
+            source: e,
+        })?;
 
     if buffer.is_empty() {
         return Err(EngineError::MftParseError(
@@ -245,7 +249,5 @@ fn parse_daemon_response(json_data: &str) -> Result<FileNode, EngineError> {
     }
 
     // 正常解析為 FileNode
-    serde_json::from_str::<FileNode>(json_data).map_err(|e| {
-        EngineError::SerializationError(e)
-    })
+    serde_json::from_str::<FileNode>(json_data).map_err(|e| EngineError::SerializationError(e))
 }

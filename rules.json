@@ -1,42 +1,479 @@
 [
   {
-    "ruleId": "dev-node-modules",
-    "name": "Node.js 專案依賴 (node_modules)",
-    "description": "專案中未使用的巨大依賴庫，可隨時透過 npm/pnpm install 重新安裝",
-    "targetPattern": "**/node_modules",
+    "ruleId": "game-steam-downloading",
+    "name": "Steam 中斷與未完成下載暫存檔",
+    "description": "Steam 用戶端在進行遊戲安裝或大型版本更新時，會預先在 downloading 目錄下建立對應 AppID 的專屬暫存資料夾，用於執行網路封包重組、校驗與就地解壓縮。當下載遭遇網路中斷、磁碟空間不足或 Steam 程序遭到強制結束時，系統常遺失清理狀態，造成高達數十 GB 的半成品下載檔案無限期滯留。 刪除後正在進行中的未完成下載任務需要重新自起點下載或重新校驗，但對目前已經正常安裝完畢的遊戲庫毫無不良影響。",
+    "targetPattern": "**/Steam/steamapps/downloading/*",
     "riskLevel": "SAFE",
-    "defaultSelected": true
+    "defaultSelected": true,
+    "category": "Gaming"
   },
   {
-    "ruleId": "dev-rust-target",
-    "name": "Rust 建置產物 (target)",
-    "description": "Cargo 編譯產生的中介檔與肥大 rlib 檔案",
-    "targetPattern": "**/target/debug",
+    "ruleId": "game-epic-vaultcache",
+    "name": "Epic Games 虛幻商城資源保管庫快取",
+    "description": "Epic Games 啟動器在使用者自虛幻商城（Marketplace / Fab）下載資產包或範例專案時，預設會將完整的原始資產包（如大型示範場景、環境模型包）快取至 VaultCache 中，以便未來重複加入不同專案。單一示範專案（如 CitySample）的快取規模常達到 30 GB 至 90 GB 以上。 已經匯入既有專案內的資源完全不受影響；未來若需要再次將該資產匯入新專案時，啟動器會重新向雲端下載原始封裝。",
+    "targetPattern": "**/Epic Games/Launcher/VaultCache/*",
     "riskLevel": "SAFE",
-    "defaultSelected": true
+    "defaultSelected": true,
+    "category": "Gaming"
   },
   {
-    "ruleId": "sys-user-temp",
-    "name": "Windows 使用者暫存檔案 (%TEMP%)",
-    "description": "應用程式遺留的臨時工作檔案與未清理日誌",
-    "targetPattern": "**/*/AppData/Local/Temp/*",
+    "ruleId": "game-nvidia-driver-unpack",
+    "name": "NVIDIA 顯示卡驅動程式解壓縮暫存目錄",
+    "description": "NVIDIA 官方驅動安裝程式在啟動時，會自動將整個驅動安裝套件解壓縮至磁碟根目錄下的該路徑中，隨後才呼叫內部安裝程序。安裝作業完成後，該安裝程式預設不會主動移除此暫存目錄，每次版本升級都會產生 1 GB 至 2 GB 的空間殘留。 無任何後果。硬體目前運作所依賴的驅動核心檔案已於安裝階段完整佈署至 System32 與 DriverStore 系統目錄。",
+    "targetPattern": "**/NVIDIA/DisplayDriver/*",
     "riskLevel": "SAFE",
-    "defaultSelected": true
+    "defaultSelected": true,
+    "category": "Gaming"
   },
   {
-    "ruleId": "browser-caches",
-    "name": "瀏覽器快取 (Chrome / Edge)",
-    "description": "網頁預載暫存檔與多媒體快取，清理後首次載入網頁可能微慢",
-    "targetPattern": "**/*/User Data/Default/Cache",
+    "ruleId": "game-amd-driver-unpack",
+    "name": "AMD 顯示卡與晶片組驅動解壓縮暫存目錄",
+    "description": "AMD Adrenalin 驅動程式安裝套件在執行時，會將完整的安裝資源解包至該路徑。即使驅動程式已順利安裝完成或歷經多次版本疊代，所有歷史版本的解壓目錄依然被完整保留。 無任何不良影響。硬體底層運作不受干擾，若未來有離線重新安裝驅動之需求，重新執行原安裝執行檔即可再次解壓。",
+    "targetPattern": "**/AMD/Support/*",
     "riskLevel": "SAFE",
-    "defaultSelected": false
+    "defaultSelected": true,
+    "category": "Gaming"
   },
   {
-    "ruleId": "sys-crash-dumps",
-    "name": "Windows 系統崩潰轉儲檔 (Crash Dumps)",
-    "description": "藍屏或程式崩潰產生的 .dmp 診斷紀錄",
-    "targetPattern": "**/Windows/Minidump/*.dmp",
+    "ruleId": "game-gpu-shader-cache-1",
+    "name": "顯示卡全域 DirectX / OpenGL 著色器二進位快取",
+    "description": "顯示卡驅動程式與 Windows Direct3D 執行環境為了避免遊戲執行時即時編譯產生掉幀，會將編譯後的著色器儲存在本機磁碟。在經歷遊戲版本更新或驅動程式升級後，舊版著色器特徵雜湊值脫鉤廢棄，累積佔用常達 5 GB 至 20 GB 以上。 遊戲在清理後首次啟動或進入全新關卡時，可能出現短暫的著色器重編譯延遲，但通常能徹底解決因著色器快取損毀所誘發的畫面破圖與異常崩潰。",
+    "targetPattern": "**/*/AppData/Local/NVIDIA/DXCache/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Gaming"
+  },
+  {
+    "ruleId": "game-gpu-shader-cache-2",
+    "name": "顯示卡全域 DirectX / OpenGL 著色器二進位快取",
+    "description": "顯示卡驅動程式與 Windows Direct3D 執行環境為了避免遊戲執行時即時編譯產生掉幀，會將編譯後的著色器儲存在本機磁碟。在經歷遊戲版本更新或驅動程式升級後，舊版著色器特徵雜湊值脫鉤廢棄，累積佔用常達 5 GB 至 20 GB 以上。 遊戲在清理後首次啟動或進入全新關卡時，可能出現短暫的著色器重編譯延遲，但通常能徹底解決因著色器快取損毀所誘發的畫面破圖與異常崩潰。",
+    "targetPattern": "**/*/AppData/Local/NVIDIA/GLCache/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Gaming"
+  },
+  {
+    "ruleId": "game-gpu-shader-cache-3",
+    "name": "顯示卡全域 DirectX / OpenGL 著色器二進位快取",
+    "description": "顯示卡驅動程式與 Windows Direct3D 執行環境為了避免遊戲執行時即時編譯產生掉幀，會將編譯後的著色器儲存在本機磁碟。在經歷遊戲版本更新或驅動程式升級後，舊版著色器特徵雜湊值脫鉤廢棄，累積佔用常達 5 GB 至 20 GB 以上。 遊戲在清理後首次啟動或進入全新關卡時，可能出現短暫的著色器重編譯延遲，但通常能徹底解決因著色器快取損毀所誘發的畫面破圖與異常崩潰。",
+    "targetPattern": "**/*/AppData/Local/AMD/DxCache/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Gaming"
+  },
+  {
+    "ruleId": "game-gpu-shader-cache-4",
+    "name": "顯示卡全域 DirectX / OpenGL 著色器二進位快取",
+    "description": "顯示卡驅動程式與 Windows Direct3D 執行環境為了避免遊戲執行時即時編譯產生掉幀，會將編譯後的著色器儲存在本機磁碟。在經歷遊戲版本更新或驅動程式升級後，舊版著色器特徵雜湊值脫鉤廢棄，累積佔用常達 5 GB 至 20 GB 以上。 遊戲在清理後首次啟動或進入全新關卡時，可能出現短暫的著色器重編譯延遲，但通常能徹底解決因著色器快取損毀所誘發的畫面破圖與異常崩潰。",
+    "targetPattern": "**/*/AppData/Local/D3DSCache/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Gaming"
+  },
+  {
+    "ruleId": "game-steam-common-redist",
+    "name": "Steam 遊戲附帶執行庫安裝包殘留",
+    "description": "諸多遊戲開發商會在各自的遊戲發行目錄中打包 DirectX、DirectPlay、Visual C++ Redistributable 等全域執行庫安裝檔。當遊戲完成初次安裝並執行過環境配置後，這些安裝檔案即不再被任何程式使用，卻在遊戲庫中大量重複存在。 完全不影響遊戲正常運作。各類執行庫已經安裝至 Windows 全域系統目錄中。",
+    "targetPattern": "**/Steam/steamapps/common/*/_CommonRedist/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Gaming"
+  },
+  {
+    "ruleId": "game-lol-logs",
+    "name": "英雄聯盟 (League of Legends) 除錯與效能記錄檔",
+    "description": "Riot 用戶端與遊戲引擎在對局連線、介面載入與遊戲進行時，會產生大量的即時純文字除錯日誌。當特定遊戲版本發生記憶體回收異常或重連重試時，日誌寫入常失控暴增，累積規模常達 5 GB 至 30 GB。 無任何後果。遊戲下次啟動時會重新建立當前連線週期的日誌結構，對遊戲存檔與個人設定無任何影響。",
+    "targetPattern": "**/League of Legends/Logs/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Gaming"
+  },
+  {
+    "ruleId": "game-genshin-webcache-1",
+    "name": "原神 (Genshin Impact) 內嵌視窗快取與崩潰傾印",
+    "description": "原神遊戲內的公告、活動展示面板與祈願抽取紀錄介面，本質為內嵌的 Chromium/CEF 網頁視窗，會產生龐大的圖片與指令碼磁碟快取；此外，遊戲遭遇執行緒例外時產生的 Crash Dump 檔亦會無限期常駐。 刪除後遊戲內活動網頁初次載入會略微重新自 CDN 拉取資源，抽卡資料與帳號核心資產維持完好。",
+    "targetPattern": "**/Genshin Impact/Genshin Impact Game/GenshinImpact_Data/webCaches/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Gaming"
+  },
+  {
+    "ruleId": "game-genshin-webcache-2",
+    "name": "原神 (Genshin Impact) 內嵌視窗快取與崩潰傾印",
+    "description": "原神遊戲內的公告、活動展示面板與祈願抽取紀錄介面，本質為內嵌的 Chromium/CEF 網頁視窗，會產生龐大的圖片與指令碼磁碟快取；此外，遊戲遭遇執行緒例外時產生的 Crash Dump 檔亦會無限期常駐。 刪除後遊戲內活動網頁初次載入會略微重新自 CDN 拉取資源，抽卡資料與帳號核心資產維持完好。",
+    "targetPattern": "**/*/AppData/LocalLow/miHoYo/*/*.log",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Gaming"
+  },
+  {
+    "ruleId": "game-genshin-webcache-3",
+    "name": "原神 (Genshin Impact) 內嵌視窗快取與崩潰傾印",
+    "description": "原神遊戲內的公告、活動展示面板與祈願抽取紀錄介面，本質為內嵌的 Chromium/CEF 網頁視窗，會產生龐大的圖片與指令碼磁碟快取；此外，遊戲遭遇執行緒例外時產生的 Crash Dump 檔亦會無限期常駐。 刪除後遊戲內活動網頁初次載入會略微重新自 CDN 拉取資源，抽卡資料與帳號核心資產維持完好。",
+    "targetPattern": "**/*/AppData/Local/Temp/mihoyocrash*/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Gaming"
+  },
+  {
+    "ruleId": "game-minecraft-logs-crashes-1",
+    "name": "Minecraft 本機執行日誌與崩潰堆疊報告",
+    "description": "Minecraft Java 版在載入大量 Mod 或伺服器連線時，會將每一次執行的終端輸出、方塊更新錯誤與模組相容性例外寫入壓縮日誌（.log.gz）與崩潰報告中，長期累積往往包含數萬個無效小檔案。 毫無影響。地圖存檔（saves）、資源包（resourcepacks）與模組設定（config）完全不受干擾。",
+    "targetPattern": "**/*/AppData/Roaming/.minecraft/logs/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Gaming"
+  },
+  {
+    "ruleId": "game-minecraft-logs-crashes-2",
+    "name": "Minecraft 本機執行日誌與崩潰堆疊報告",
+    "description": "Minecraft Java 版在載入大量 Mod 或伺服器連線時，會將每一次執行的終端輸出、方塊更新錯誤與模組相容性例外寫入壓縮日誌（.log.gz）與崩潰報告中，長期累積往往包含數萬個無效小檔案。 毫無影響。地圖存檔（saves）、資源包（resourcepacks）與模組設定（config）完全不受干擾。",
+    "targetPattern": "**/*/AppData/Roaming/.minecraft/crash-reports/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Gaming"
+  },
+  {
+    "ruleId": "creative-adobe-media-cache-1",
+    "name": "Adobe Premiere Pro / After Effects 媒體快取資料庫",
+    "description": "Adobe 剪輯與特效軟體在匯入音視訊素材時，會將音訊波形圖、重新取樣的未壓縮音訊（.cfa）與視訊影格索引（.pek）寫入此全域快取目錄，藉此確保時間軸播放時的流暢度。已結案或歷史專案的快取不會被自動清除，常年佔用 50 GB 至 100 GB 以上。 剪輯專案檔與原始素材安全無損。下次開啟舊專案時，Adobe 軟體會在背景自動重新生成當前素材所需的波形索引，初次專案載入時間略微拉長。",
+    "targetPattern": "**/*/AppData/Roaming/Adobe/Common/Media Cache Files/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Other"
+  },
+  {
+    "ruleId": "creative-adobe-media-cache-2",
+    "name": "Adobe Premiere Pro / After Effects 媒體快取資料庫",
+    "description": "Adobe 剪輯與特效軟體在匯入音視訊素材時，會將音訊波形圖、重新取樣的未壓縮音訊（.cfa）與視訊影格索引（.pek）寫入此全域快取目錄，藉此確保時間軸播放時的流暢度。已結案或歷史專案的快取不會被自動清除，常年佔用 50 GB 至 100 GB 以上。 剪輯專案檔與原始素材安全無損。下次開啟舊專案時，Adobe 軟體會在背景自動重新生成當前素材所需的波形索引，初次專案載入時間略微拉長。",
+    "targetPattern": "**/*/AppData/Roaming/Adobe/Common/Media Cache/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Other"
+  },
+  {
+    "ruleId": "creative-unreal-ddc",
+    "name": "Unreal Engine 衍生資料快取 (Derived Data Cache)",
+    "description": "虛幻引擎會將專案內的原始紋理、靜態網格、骨骼模型與著色器轉換為目標平台直接可用的內部衍生格式，並集中儲存於使用者全域的 DDC 目錄中以供不同專案重複利用。隨著經手專案增加，該目錄常佔據數十 GB 磁碟空間。 原始資產（uasset）與專案程式碼完全無損；下次於 Unreal 編輯器開啟專案時，引擎會依據原始資產重新編譯遺失的衍生資料，產生額外 CPU 計算時間。",
+    "targetPattern": "**/*/AppData/Local/UnrealEngine/Common/DerivedDataCache/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Other"
+  },
+  {
+    "ruleId": "creative-unity-gi-cache",
+    "name": "Unity 全域光照烘焙快取 (GI Cache)",
+    "description": "Unity 編輯器在進行場景光照貼圖烘焙（Lightmapping）過程中，Enlighten 或 Progressive 算圖模組會將中間幾何射線、輻射度反彈資料暫存於此，以加速後續微調時的反覆運算。專案結案後此處仍持續佔用空間。 專案已生成的光照貼圖與場景資料不受影響；若手動再次對該場景發起全域光照計算，解算器將從初始狀態重新計算。",
+    "targetPattern": "**/*/AppData/LocalLow/Unity/cache/gi/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Other"
+  },
+  {
+    "ruleId": "dev-docker-wsl2-vhdx-1",
+    "name": "Docker Desktop WSL2 虛擬硬碟映像檔 (已膨脹區塊)",
+    "description": "Docker Desktop 透過 WSL2 運行容器引擎，所有的容器層（Containers）、映像檔（Images）與資料卷（Volumes）皆集中於單一動態擴充的 ext4.vhdx 虛擬磁碟中。即使在容器內執行修剪指令，NTFS 檔案系統上的 VHDX 實體檔案亦不會自動縮回。 嚴禁直接刪除該檔案，否則將導致所有本機 Docker 映像與未持久化的容器資料全數滅失；本項目應於 WSL 關閉狀態下，調用 Optimize-VHD -Mode Full 進行離線修剪壓縮，或於備份容器資料後再做重置。",
+    "targetPattern": "**/*/AppData/Local/Docker/wsl/data/ext4.vhdx",
     "riskLevel": "QUARANTINE",
-    "defaultSelected": false
+    "defaultSelected": false,
+    "category": "Dev & Design"
+  },
+  {
+    "ruleId": "dev-docker-wsl2-vhdx-2",
+    "name": "Docker Desktop WSL2 虛擬硬碟映像檔 (已膨脹區塊)",
+    "description": "Docker Desktop 透過 WSL2 運行容器引擎，所有的容器層（Containers）、映像檔（Images）與資料卷（Volumes）皆集中於單一動態擴充的 ext4.vhdx 虛擬磁碟中。即使在容器內執行修剪指令，NTFS 檔案系統上的 VHDX 實體檔案亦不會自動縮回。 嚴禁直接刪除該檔案，否則將導致所有本機 Docker 映像與未持久化的容器資料全數滅失；本項目應於 WSL 關閉狀態下，調用 Optimize-VHD -Mode Full 進行離線修剪壓縮，或於備份容器資料後再做重置。",
+    "targetPattern": "**/*/AppData/Local/Docker/wsl/main/ext4.vhdx",
+    "riskLevel": "QUARANTINE",
+    "defaultSelected": false,
+    "category": "Dev & Design"
+  },
+  {
+    "ruleId": "dev-vscode-workspace-storage-1",
+    "name": "VS Code 工作區持久化狀態與語法快取",
+    "description": "VS Code 在使用者開啟每一個資料夾時，會建立以雜湊值命名的子目錄，儲存 Language Server 的語法樹索引（AST 快取）、除錯中斷點記錄與延伸模組的狀態快照。長年累積開啟大量臨時專案會造成數萬個零碎快取檔案滯留。 專案原始碼毫無影響；下次開啟該工作區時，VS Code 延伸模組會重新建立語法索引，編輯器內的視圖分割排版會重設回預設狀態。",
+    "targetPattern": "**/*/AppData/Roaming/Code/User/workspaceStorage/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Dev & Design"
+  },
+  {
+    "ruleId": "dev-vscode-workspace-storage-2",
+    "name": "VS Code 工作區持久化狀態與語法快取",
+    "description": "VS Code 在使用者開啟每一個資料夾時，會建立以雜湊值命名的子目錄，儲存 Language Server 的語法樹索引（AST 快取）、除錯中斷點記錄與延伸模組的狀態快照。長年累積開啟大量臨時專案會造成數萬個零碎快取檔案滯留。 專案原始碼毫無影響；下次開啟該工作區時，VS Code 延伸模組會重新建立語法索引，編輯器內的視圖分割排版會重設回預設狀態。",
+    "targetPattern": "**/*/AppData/Roaming/Code/CachedData/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Dev & Design"
+  },
+  {
+    "ruleId": "dev-gradle-build-cache",
+    "name": "Gradle 建置快取與全域依賴套件庫",
+    "description": "Android 與 Java 開發工具鏈使用 Gradle 進行專案編譯時，會在使用者目錄下快取所有下載的遠端 JAR/AAR 依賴項及跨模組工作建置成果。舊版本依賴項在專案升級後並不會被 Gradle 主動淘汰，長期佔用 10 GB 至 30 GB 空間。 刪除後完全不影響現有專案原始碼；下次執行專案建置時，Gradle 會自動重新下載宣告的依賴封裝，首次建置週期耗時增加。",
+    "targetPattern": "**/*/.gradle/caches/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Dev & Design"
+  },
+  {
+    "ruleId": "dev-nuget-package-cache",
+    "name": "全域 NuGet 套件還原快取目錄",
+    "description": ".NET 開發環境在執行 dotnet restore 或於 Visual Studio 編譯專案時，會將所有依賴套件下載並解壓縮至使用者目錄的全域快取資料夾中，日積月累會形成龐大的多版本組件堆積。 現存已發布專案不受影響；後續專案編譯若缺乏特定組件，建置工具鏈會自動重新向 NuGet 伺服器請求還原。",
+    "targetPattern": "**/*/.nuget/packages/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Dev & Design"
+  },
+  {
+    "ruleId": "dev-jetbrains-system-cache-1",
+    "name": "JetBrains IDE 系統快取與語法索引庫",
+    "description": "IntelliJ IDEA、PyCharm、CLion 等工具在解析專案結構時，會建立龐大的抽象語法樹與全域符號索引以支援智慧補全。當歷經軟體大版本升級或經手大量臨時專案時，歷史版本的索引庫不會被自動清理。 不影響專案檔案與軟體偏好設定；重新開啟專案時 IDE 會重新經歷一次背景索引（Indexing）程序。",
+    "targetPattern": "**/*/AppData/Local/JetBrains/*/caches/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Dev & Design"
+  },
+  {
+    "ruleId": "dev-jetbrains-system-cache-2",
+    "name": "JetBrains IDE 系統快取與語法索引庫",
+    "description": "IntelliJ IDEA、PyCharm、CLion 等工具在解析專案結構時，會建立龐大的抽象語法樹與全域符號索引以支援智慧補全。當歷經軟體大版本升級或經手大量臨時專案時，歷史版本的索引庫不會被自動清理。 不影響專案檔案與軟體偏好設定；重新開啟專案時 IDE 會重新經歷一次背景索引（Indexing）程序。",
+    "targetPattern": "**/*/AppData/Local/JetBrains/*/index/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Dev & Design"
+  },
+  {
+    "ruleId": "app-discord-media-cache-1",
+    "name": "Discord 聊天多媒體與 Electron 渲染快取",
+    "description": "Discord 桌面端將使用者在文字頻道與私聊中瀏覽過的圖片、GIF 動圖、使用者頭像與自訂貼圖寫入 Chromium 磁碟快取架構中。由於快取上限閾值配置寬鬆，常年使用極易膨脹至 10 GB 以上。 完全無負面影響。歷史訊息文字與媒體連結皆保存於 Discord 雲端伺服器；刪除後捲動至歷史訊息時，圖片會即時重新下載載入。",
+    "targetPattern": "**/*/AppData/Roaming/discord/Cache/Cache_Data/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Browsers & Apps"
+  },
+  {
+    "ruleId": "app-discord-media-cache-2",
+    "name": "Discord 聊天多媒體與 Electron 渲染快取",
+    "description": "Discord 桌面端將使用者在文字頻道與私聊中瀏覽過的圖片、GIF 動圖、使用者頭像與自訂貼圖寫入 Chromium 磁碟快取架構中。由於快取上限閾值配置寬鬆，常年使用極易膨脹至 10 GB 以上。 完全無負面影響。歷史訊息文字與媒體連結皆保存於 Discord 雲端伺服器；刪除後捲動至歷史訊息時，圖片會即時重新下載載入。",
+    "targetPattern": "**/*/AppData/Roaming/discord/Code Cache/js/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Browsers & Apps"
+  },
+  {
+    "ruleId": "app-spotify-offline-cache-1",
+    "name": "Spotify 串流音訊暫存與離線音樂儲存區",
+    "description": "Spotify 桌面端為了降低重複播放時的網路流量消耗並實現平滑換曲，會將線上串流的高音質音訊以加密區塊快取於本機；若使用者啟用了「下載以供離線收聽」，此目錄規模常達 10 GB 至 30 GB。 帳號資料、收藏歌單完好無損；但所有標記為本機離線播放的音訊檔案會被清除，下次播放時需透過網路連線串流並重新建立快取。",
+    "targetPattern": "**/*/AppData/Local/Spotify/Storage/*",
+    "riskLevel": "QUARANTINE",
+    "defaultSelected": false,
+    "category": "Browsers & Apps"
+  },
+  {
+    "ruleId": "app-spotify-offline-cache-2",
+    "name": "Spotify 串流音訊暫存與離線音樂儲存區",
+    "description": "Spotify 桌面端為了降低重複播放時的網路流量消耗並實現平滑換曲，會將線上串流的高音質音訊以加密區塊快取於本機；若使用者啟用了「下載以供離線收聽」，此目錄規模常達 10 GB 至 30 GB。 帳號資料、收藏歌單完好無損；但所有標記為本機離線播放的音訊檔案會被清除，下次播放時需透過網路連線串流並重新建立快取。",
+    "targetPattern": "**/*/AppData/Local/Packages/SpotifyAB.SpotifyMusic_*/LocalState/Spotify/Storage/*",
+    "riskLevel": "QUARANTINE",
+    "defaultSelected": false,
+    "category": "Browsers & Apps"
+  },
+  {
+    "ruleId": "app-line-media-cache-1",
+    "name": "LINE PC 版通訊多媒體與暫存檔案",
+    "description": "桌面版 LINE 在聊天視窗中載入的縮圖預覽、外掛播放器暫存與各類接收檔案會持續堆積在使用者端儲存空間內。由於 LINE 雲端對於多媒體檔案設有下載過期機制，部分檔案過期後本機快取仍未釋放。 文字聊天歷史不受影響（儲存於 LINE/Data/db 內部資料庫中）；但若聊天室內傳送的多媒體檔案已在 LINE 伺服器端過期，清空本機快取後將徹底無法預覽該圖片。",
+    "targetPattern": "**/*/AppData/Local/LINE/Cache/*",
+    "riskLevel": "QUARANTINE",
+    "defaultSelected": false,
+    "category": "Browsers & Apps"
+  },
+  {
+    "ruleId": "app-line-media-cache-2",
+    "name": "LINE PC 版通訊多媒體與暫存檔案",
+    "description": "桌面版 LINE 在聊天視窗中載入的縮圖預覽、外掛播放器暫存與各類接收檔案會持續堆積在使用者端儲存空間內。由於 LINE 雲端對於多媒體檔案設有下載過期機制，部分檔案過期後本機快取仍未釋放。 文字聊天歷史不受影響（儲存於 LINE/Data/db 內部資料庫中）；但若聊天室內傳送的多媒體檔案已在 LINE 伺服器端過期，清空本機快取後將徹底無法預覽該圖片。",
+    "targetPattern": "**/*/AppData/Local/LINE/Data/plugin/LineMediaPlayer/*",
+    "riskLevel": "QUARANTINE",
+    "defaultSelected": false,
+    "category": "Browsers & Apps"
+  },
+  {
+    "ruleId": "app-telegram-desktop-cache",
+    "name": "Telegram Desktop 媒體與文件本機快取",
+    "description": "Telegram 在瀏覽大量頻道、群組訊息時，會將接收到的高畫質視訊、語音檔案、圖片快取至本機以供即時播放。若使用者未在軟體內部手動限制快取容量，該目錄極易佔用數十 GB 空間。 帳號認證與雲端訊息歷史不受影響；刪除本機快取後，聊天室中的媒體內容在使用者點擊時會由 Telegram 雲端重新拉取。",
+    "targetPattern": "**/*/AppData/Roaming/Telegram Desktop/tdata/user_data/cache/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "Browsers & Apps"
+  },
+  {
+    "ruleId": "app-wechat-files-cache-1",
+    "name": "微信 (WeChat PC) 自動下載與影片快取",
+    "description": "微信桌面端預設會自動下載群組與對話中傳送的短影音、朋友圈預覽圖片以及各類群檔案縮圖，並永久儲存在使用者「文件」資料夾中，佔用空間往往突破 20 GB 至 50 GB。 聊天對話文字不受影響；但群組中已接收的預覽縮圖與自動下載的短影音會被移除，若需再次觀看需重新點擊觸發下載（若未在伺服器端過期）。",
+    "targetPattern": "**/*/Documents/WeChat Files/*/FileStorage/Cache/*",
+    "riskLevel": "QUARANTINE",
+    "defaultSelected": false,
+    "category": "Browsers & Apps"
+  },
+  {
+    "ruleId": "app-wechat-files-cache-2",
+    "name": "微信 (WeChat PC) 自動下載與影片快取",
+    "description": "微信桌面端預設會自動下載群組與對話中傳送的短影音、朋友圈預覽圖片以及各類群檔案縮圖，並永久儲存在使用者「文件」資料夾中，佔用空間往往突破 20 GB 至 50 GB。 聊天對話文字不受影響；但群組中已接收的預覽縮圖與自動下載的短影音會被移除，若需再次觀看需重新點擊觸發下載（若未在伺服器端過期）。",
+    "targetPattern": "**/*/Documents/WeChat Files/*/FileStorage/Video/*",
+    "riskLevel": "QUARANTINE",
+    "defaultSelected": false,
+    "category": "Browsers & Apps"
+  },
+  {
+    "ruleId": "emu-itunes-mobilesync-1",
+    "name": "Apple iOS 裝置完整本機備份 (MobileSync)",
+    "description": "使用者透過 Windows 上的 iTunes 或「Apple 裝置」應用程式連接 iPhone/iPad 執行備份時，系統會將行動裝置的應用程式狀態、相片與系統設定完整傾印為二進位封裝。歷史備份不會被自動覆蓋覆寫，單一裝置備份容量常落在 30 GB 至 120 GB 之間。 該目錄存放行動裝置的實體還原點；若使用者已將備份轉移至 iCloud 或確認不再需要舊還原點，刪除可釋放龐大空間；若誤刪則無法透過本機電腦恢復手機系統狀態。",
+    "targetPattern": "**/*/AppData/Roaming/Apple Computer/MobileSync/Backup/*",
+    "riskLevel": "QUARANTINE",
+    "defaultSelected": false,
+    "category": "Other"
+  },
+  {
+    "ruleId": "emu-itunes-mobilesync-2",
+    "name": "Apple iOS 裝置完整本機備份 (MobileSync)",
+    "description": "使用者透過 Windows 上的 iTunes 或「Apple 裝置」應用程式連接 iPhone/iPad 執行備份時，系統會將行動裝置的應用程式狀態、相片與系統設定完整傾印為二進位封裝。歷史備份不會被自動覆蓋覆寫，單一裝置備份容量常落在 30 GB 至 120 GB 之間。 該目錄存放行動裝置的實體還原點；若使用者已將備份轉移至 iCloud 或確認不再需要舊還原點，刪除可釋放龐大空間；若誤刪則無法透過本機電腦恢復手機系統狀態。",
+    "targetPattern": "**/*/Apple/MobileSync/Backup/*",
+    "riskLevel": "QUARANTINE",
+    "defaultSelected": false,
+    "category": "Other"
+  },
+  {
+    "ruleId": "emu-bluestacks-vdi-1",
+    "name": "BlueStacks 模擬器虛擬硬碟鏡像檔 (卸載殘留或膨脹磁碟)",
+    "description": "BlueStacks 5 的 Android 虛擬機器環境採用 VDI/VHD 磁碟格式，在安裝應用程式時持續向 NTFS 宿主申請空間擴充。當使用者在模擬器內解除安裝遊戲後，動態磁碟無法自動歸還未分配磁區。 若仍在頻繁使用該多開實例，直接刪除會導致虛擬 Android 實例損毀並遺失所有遊戲進度；但若多開實例已在管理介面中刪除，此處殘留的孤兒 VDI 則可安全移除。",
+    "targetPattern": "**/ProgramData/BlueStacks_nxt/Engine/*/*.vdi",
+    "riskLevel": "QUARANTINE",
+    "defaultSelected": false,
+    "category": "Other"
+  },
+  {
+    "ruleId": "emu-bluestacks-vdi-2",
+    "name": "BlueStacks 模擬器虛擬硬碟鏡像檔 (卸載殘留或膨脹磁碟)",
+    "description": "BlueStacks 5 的 Android 虛擬機器環境採用 VDI/VHD 磁碟格式，在安裝應用程式時持續向 NTFS 宿主申請空間擴充。當使用者在模擬器內解除安裝遊戲後，動態磁碟無法自動歸還未分配磁區。 若仍在頻繁使用該多開實例，直接刪除會導致虛擬 Android 實例損毀並遺失所有遊戲進度；但若多開實例已在管理介面中刪除，此處殘留的孤兒 VDI 則可安全移除。",
+    "targetPattern": "**/ProgramData/BlueStacks_nxt/Engine/*/*.vhd",
+    "riskLevel": "QUARANTINE",
+    "defaultSelected": false,
+    "category": "Other"
+  },
+  {
+    "ruleId": "emu-nox-vmdk-1",
+    "name": "夜神模擬器 (NoxPlayer) 虛擬機磁碟映像檔",
+    "description": "夜神模擬器的 Android 多開實例會以 VMDK 格式建立獨立的虛擬磁碟。使用者在經年累月建立與測試多個虛擬環境後，該目錄往往聚集數個數十 GB 的虛擬映像檔。 刪除特定虛擬實例對應的目錄將導致該多開虛擬機器被銷毀；若為已在控制台中移除但實體檔案未刪除的孤兒 VMDK，則可全數清理。",
+    "targetPattern": "**/Program Files (x86)/Nox/bin/BignoxVMS/*/*.vmdk",
+    "riskLevel": "QUARANTINE",
+    "defaultSelected": false,
+    "category": "Other"
+  },
+  {
+    "ruleId": "emu-nox-vmdk-2",
+    "name": "夜神模擬器 (NoxPlayer) 虛擬機磁碟映像檔",
+    "description": "夜神模擬器的 Android 多開實例會以 VMDK 格式建立獨立的虛擬磁碟。使用者在經年累月建立與測試多個虛擬環境後，該目錄往往聚集數個數十 GB 的虛擬映像檔。 刪除特定虛擬實例對應的目錄將導致該多開虛擬機器被銷毀；若為已在控制台中移除但實體檔案未刪除的孤兒 VMDK，則可全數清理。",
+    "targetPattern": "**/*/AppData/Local/Nox/BignoxVMS/*/*.vmdk",
+    "riskLevel": "QUARANTINE",
+    "defaultSelected": false,
+    "category": "Other"
+  },
+  {
+    "ruleId": "emu-ldplayer-vms-1",
+    "name": "雷電模擬器 (LDPlayer) 虛擬硬碟映像檔",
+    "description": "雷電模擬器同樣採用虛擬磁碟映像檔管理 Android 檔案系統。隨著遊戲資源更新與多開實例衍生，磁碟映像呈現單向不可逆膨脹，長久累積常達數十 GB。 刪除運作中的實例映像檔會損毀該模擬器實例；確認特定多開實例已廢棄不再使用後方可執行清理。",
+    "targetPattern": "**/LDPlayer/LDPlayer*/vms/*/*.vmdk",
+    "riskLevel": "QUARANTINE",
+    "defaultSelected": false,
+    "category": "Other"
+  },
+  {
+    "ruleId": "emu-ldplayer-vms-2",
+    "name": "雷電模擬器 (LDPlayer) 虛擬硬碟映像檔",
+    "description": "雷電模擬器同樣採用虛擬磁碟映像檔管理 Android 檔案系統。隨著遊戲資源更新與多開實例衍生，磁碟映像呈現單向不可逆膨脹，長久累積常達數十 GB。 刪除運作中的實例映像檔會損毀該模擬器實例；確認特定多開實例已廢棄不再使用後方可執行清理。",
+    "targetPattern": "**/vms/leidian*/*.vmdk",
+    "riskLevel": "QUARANTINE",
+    "defaultSelected": false,
+    "category": "Other"
+  },
+  {
+    "ruleId": "sys-delivery-optimization",
+    "name": "Windows 傳遞最佳化 (Delivery Optimization) P2P 快取",
+    "description": "Windows Update 與 Microsoft Store 透過 Delivery Optimization (DoSvc) 模組下載系統更新與應用程式時，會將分塊封裝儲存於 NetworkService 設定檔中，並利用本機作為 P2P 分發節點對區域網路其他 PC 提供更新種子。此目錄常在背景無聲累積至 20 GB 至 40 GB。 無任何不良後果。已安裝的 Windows 更新與 Store 軟體不受任何干擾；未來若有新更新，Windows 會直接向微軟 CDN 節點拉取。",
+    "targetPattern": "**/Windows/ServiceProfiles/NetworkService/AppData/Local/Microsoft/Windows/DeliveryOptimization/Cache/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "System"
+  },
+  {
+    "ruleId": "sys-cbs-makecab-temp-1",
+    "name": "CBS 維修日誌壓縮錯誤產生的無窮暫存檔迴圈",
+    "description": "當元件服務維修記錄檔（CBS.log）單檔大小超過 2 GB 限制時，Windows 內建的 32 位元 makecab.exe 工具在背景自動執行排程壓縮時會發生整數溢位崩潰。排程服務隨後每隔數十分鐘重複執行壓縮任務，並在 C:\\Windows\\Temp 留下以 cab_ 為前綴的暫存垃圾檔，短期內即可將 C 槽數百 GB 的剩餘空間徹底耗盡。 安全且屬於系統修復操作。刪除後可瞬間解救面臨容量崩潰的系統磁碟，清除過大的歷史日誌有助於恢復背景 TrustedInstaller 服務的正常運作。",
+    "targetPattern": "**/Windows/Temp/cab_*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "System"
+  },
+  {
+    "ruleId": "sys-cbs-makecab-temp-2",
+    "name": "CBS 維修日誌壓縮錯誤產生的無窮暫存檔迴圈",
+    "description": "當元件服務維修記錄檔（CBS.log）單檔大小超過 2 GB 限制時，Windows 內建的 32 位元 makecab.exe 工具在背景自動執行排程壓縮時會發生整數溢位崩潰。排程服務隨後每隔數十分鐘重複執行壓縮任務，並在 C:\\Windows\\Temp 留下以 cab_ 為前綴的暫存垃圾檔，短期內即可將 C 槽數百 GB 的剩餘空間徹底耗盡。 安全且屬於系統修復操作。刪除後可瞬間解救面臨容量崩潰的系統磁碟，清除過大的歷史日誌有助於恢復背景 TrustedInstaller 服務的正常運作。",
+    "targetPattern": "**/Windows/Logs/CBS/CbsPersist_*.log",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "System"
+  },
+  {
+    "ruleId": "sys-wer-crash-reports-1",
+    "name": "Windows 錯誤回報 (WER) 崩潰傾印與歸檔報告",
+    "description": "當桌面應用程式發生未捕捉例外崩潰或系統程序死鎖時，Windows Error Reporting 模組會攔截呼叫堆疊，並將記憶體傾印檔（MiniDump / DMP）寫入佇列中以供遙測分析，長年累積會形成數 GB 的除錯垃圾。 完全無負面影響。僅清除了歷史崩潰事件的離線記錄檔，不影響目前系統與軟體的運作穩定度。",
+    "targetPattern": "**/ProgramData/Microsoft/Windows/WER/ReportArchive/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "System"
+  },
+  {
+    "ruleId": "sys-wer-crash-reports-2",
+    "name": "Windows 錯誤回報 (WER) 崩潰傾印與歸檔報告",
+    "description": "當桌面應用程式發生未捕捉例外崩潰或系統程序死鎖時，Windows Error Reporting 模組會攔截呼叫堆疊，並將記憶體傾印檔（MiniDump / DMP）寫入佇列中以供遙測分析，長年累積會形成數 GB 的除錯垃圾。 完全無負面影響。僅清除了歷史崩潰事件的離線記錄檔，不影響目前系統與軟體的運作穩定度。",
+    "targetPattern": "**/ProgramData/Microsoft/Windows/WER/ReportQueue/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "System"
+  },
+  {
+    "ruleId": "sys-driverstore-repository",
+    "name": "驅動程式存放區過期與被取代版本封裝 (DriverStore)",
+    "description": "Windows 為了確保驅動程式升級發生異常時能無痛復原（Rollback），在每次安裝新硬體驅動時，會將舊版驅動的 INF、SYS 與 DLL 檔案永久備份於 FileRepository 中。一台使用數年的工作站，其歷史顯示卡與晶片組驅動備份常耗費 15 GB 到 30 GB 空間。 嚴禁使用常規檔案系統 Delete 指令硬刪該目錄檔案，否則會破壞驅動程式 ACL 權限與註冊清冊，導致系統藍白當機（BSOD）；必須透過呼叫 Windows 內建的 pnputil.exe /delete-driver oem*.inf /uninstall API 安全剔除未被當前硬體引用的「已取代舊驅動」。",
+    "targetPattern": "**/Windows/System32/DriverStore/FileRepository/*",
+    "riskLevel": "QUARANTINE",
+    "defaultSelected": false,
+    "category": "System"
+  },
+  {
+    "ruleId": "sys-installer-patch-orphans-1",
+    "name": "Windows Installer 孤兒修補程式 (.msp) 與安裝快取",
+    "description": "Windows Installer 子系統在安裝與更新大型軟體（如 Visual Studio、Microsoft 365）時，會將原始安裝包與差分修補封裝保存在該目錄下以供未來修改或維護。然而，在軟體歷經多次版本疊代覆蓋後，過往版本的 MSP 修補檔常脫離系統登錄表鍵值鏈結，成為無法透過常規途徑辨識的孤兒檔案。 任意刪除具有有效參照的 MSP/MSI 檔案會導致特定軟體未來無法更新或無法正常解除安裝；必須比對系統登錄表登錄的 Patches 與 Products 清冊，僅能針對完全失去登錄表參照的「純孤兒檔案」執行安全刪除。",
+    "targetPattern": "**/Windows/Installer/*.msp",
+    "riskLevel": "QUARANTINE",
+    "defaultSelected": false,
+    "category": "System"
+  },
+  {
+    "ruleId": "sys-installer-patch-orphans-2",
+    "name": "Windows Installer 孤兒修補程式 (.msp) 與安裝快取",
+    "description": "Windows Installer 子系統在安裝與更新大型軟體（如 Visual Studio、Microsoft 365）時，會將原始安裝包與差分修補封裝保存在該目錄下以供未來修改或維護。然而，在軟體歷經多次版本疊代覆蓋後，過往版本的 MSP 修補檔常脫離系統登錄表鍵值鏈結，成為無法透過常規途徑辨識的孤兒檔案。 任意刪除具有有效參照的 MSP/MSI 檔案會導致特定軟體未來無法更新或無法正常解除安裝；必須比對系統登錄表登錄的 Patches 與 Products 清冊，僅能針對完全失去登錄表參照的「純孤兒檔案」執行安全刪除。",
+    "targetPattern": "**/Windows/Installer/*.msi",
+    "riskLevel": "QUARANTINE",
+    "defaultSelected": false,
+    "category": "System"
+  },
+  {
+    "ruleId": "sys-windows-old",
+    "name": "舊版 Windows 作業系統升級備份 (Windows.old)",
+    "description": "當 Windows 10/11 執行年度大型功能更新（Feature Update）或原地修復升級時，系統安裝精靈會將先前的完整作業系統核心、使用者設定檔與 Program Files 封存於磁碟根目錄下的 Windows.old 中，預設保留 10 天以供相容性回滾，佔用空間通常在 20 GB 至 50 GB 之間。 刪除後將喪失透過系統設定回退至舊版 Windows 的能力；若目前系統運作穩定且無降級需求，清除該目錄可立即釋回大量實體空間。",
+    "targetPattern": "**/Windows.old/*",
+    "riskLevel": "SAFE",
+    "defaultSelected": true,
+    "category": "System"
   }
 ]

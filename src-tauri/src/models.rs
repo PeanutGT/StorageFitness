@@ -124,3 +124,43 @@ pub struct CleanupAnalysisResult {
     /// `rule_id` -> [絕對路徑清單] 的對應表
     pub matched_paths: std::collections::HashMap<String, Vec<String>>,
 }
+
+// ==========================================
+// 4. 硬體健康資訊模型 (Hardware Health)
+// ==========================================
+
+/// 讀取 S.M.A.R.T. 資料的結果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiskHealthMetrics {
+    pub device_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wear: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub read_errors_total: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub write_errors_total: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub power_on_hours: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub raw_data: Option<String>,
+}
+
+// ==========================================
+// 5. 應用程式管理模型 (Installed Applications)
+// ==========================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstalledApp {
+    pub id: String,
+    pub display_name: String,
+    pub publisher: Option<String>,
+    pub display_version: Option<String>,
+    pub install_date: Option<String>,
+    pub estimated_size_bytes: Option<u64>,
+    pub uninstall_string: Option<String>,
+    pub install_location: Option<String>,
+}

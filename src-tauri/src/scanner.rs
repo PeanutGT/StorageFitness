@@ -297,9 +297,9 @@ impl DiskScanner for StandardScanner {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cell::RefCell;
     use std::fs;
     use std::path::PathBuf;
-    use std::cell::RefCell;
 
     #[test]
     fn test_scanner_creates_tree_for_temp_dir() {

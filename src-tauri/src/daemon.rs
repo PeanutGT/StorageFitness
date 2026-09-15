@@ -25,16 +25,15 @@ use std::os::windows::ffi::OsStrExt;
 use std::os::windows::io::FromRawHandle;
 use std::path::PathBuf;
 
-use tauri_app_lib::mft::{MftScanner, MftScannerConfig};
-use tauri_app_lib::models::ScanProgressEvent;
-use tauri_app_lib::scanner::DiskScanner;
+use storage_fitness_lib::mft::{MftScanner, MftScannerConfig};
+use storage_fitness_lib::models::ScanProgressEvent;
+use storage_fitness_lib::scanner::DiskScanner;
 
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::INVALID_HANDLE_VALUE;
 use windows::Win32::Storage::FileSystem::FILE_FLAGS_AND_ATTRIBUTES;
 use windows::Win32::System::Pipes::{
-    ConnectNamedPipe, CreateNamedPipeW, PIPE_READMODE_BYTE, PIPE_TYPE_BYTE,
-    PIPE_WAIT,
+    ConnectNamedPipe, CreateNamedPipeW, PIPE_READMODE_BYTE, PIPE_TYPE_BYTE, PIPE_WAIT,
 };
 
 /// Win32 常量 PIPE_ACCESS_DUPLEX = 0x00000003
@@ -49,7 +48,9 @@ fn main() {
             "StorageFitness Daemon v0.1\n\
              Usage: {} <pipe_name> <drive_letter>\n\
              This executable is intended to be launched by the main StorageFitness application.",
-            args.first().map(|s| s.as_str()).unwrap_or("storage-fitness-daemon")
+            args.first()
+                .map(|s| s.as_str())
+                .unwrap_or("storage-fitness-daemon")
         );
         std::process::exit(1);
     }
@@ -83,7 +84,10 @@ fn main() {
     };
 
     if h_pipe == INVALID_HANDLE_VALUE {
-        eprintln!("[Daemon] FATAL: Failed to create named pipe '{}'.", pipe_name);
+        eprintln!(
+            "[Daemon] FATAL: Failed to create named pipe '{}'.",
+            pipe_name
+        );
         std::process::exit(1);
     }
 

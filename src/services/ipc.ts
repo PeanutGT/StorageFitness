@@ -1,4 +1,5 @@
 /**
+/**
  * StorageFitness - Next-Gen Windows Disk Analyzer & Cleaner
  * 負責人：⚡ Gemini 3.8 Flash
  * 模組：Tauri IPC 服務橋接層 (src/services/ipc.ts)
@@ -6,7 +7,8 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
-import type { MftRecordSummary, CleanupRule, CleanupAnalysisResult } from '../shared/ipc-contracts';
+import { open } from '@tauri-apps/plugin-dialog';
+import type { MftRecordSummary, CleanupRule, CleanupAnalysisResult, DiskHealthMetrics } from '../shared/ipc-contracts';
 
 /**
  * 檢查當前是否運行於 Tauri 桌面環境中
@@ -168,8 +170,27 @@ export async function updateCleanupRules(): Promise<CleanupRule[]> {
       name: "Node.js 專案依賴 (node_modules)",
       description: "專案中未使用的巨大依賴庫",
       targetPattern: "**/node_modules",
+      category: "Dev & Design",
       riskLevel: "SAFE",
       defaultSelected: true
+    },
+    {
+      ruleId: "game-steam-cache",
+      name: "Steam 下載快取",
+      description: "Steam 下載遊戲中斷或失敗時殘留的無用檔案",
+      targetPattern: "**/*/Steam/steamapps/downloading/*",
+      category: "Gaming",
+      riskLevel: "SAFE",
+      defaultSelected: true
+    },
+    {
+      ruleId: "sys-ios-backup",
+      name: "老舊的備份檔 (iOS/Windows.old 等)",
+      description: "iTunes 備份與 Windows 更新備份的殘留檔，佔用巨大空間",
+      targetPattern: "**/*/AppData/Roaming/Apple Computer/MobileSync/Backup/*",
+      category: "System",
+      riskLevel: "QUARANTINE",
+      defaultSelected: false
     }
   ];
 }
@@ -186,6 +207,25 @@ export async function analyzeCleanupTargets(tree: MftRecordSummary, rules: Clean
     rules: rules.map(r => ({ ...r, estimatedSize: 1024 * 1024 * 500 })),
     matchedPaths: {}
   };
+}
+
+/**
+ * 取得硬體健康資訊 (S.M.A.R.T.)
+ */
+export async function getDiskHealth(): Promise<DiskHealthMetrics[]> {
+  if (isTauriEnvironment()) {
+    return await invoke<DiskHealthMetrics[]>('get_disk_health');
+  }
+  // Mock fallback for browser
+  return [
+    {
+      deviceId: "PhysicalDisk0",
+      temperature: 42.5,
+      wear: 98.2,
+      readErrorsTotal: 0,
+      writeErrorsTotal: 0
+    }
+  ];
 }
 
 /**
@@ -270,5 +310,89 @@ export async function executeCleanup(paths: string[]): Promise<void> {
         resolve();
       }, 800);
     });
+  }
+}
+
+/**
+ * 開啟原生的資料夾選擇對話框。
+ */
+export async function openDirectoryDialog(): Promise<string | null> {
+  if (isTauriEnvironment()) {
+    try {
+      const selectedPath = await open({
+        directory: true,
+        multiple: false,
+        title: '選擇要掃描的資料夾'
+      });
+      return selectedPath as string | null;
+    } catch (err) {
+      console.warn('Failed to open directory dialog:', err);
+      return null;
+    }
+  } else {
+    // 瀏覽器預覽環境下模擬對話框
+    const mockPath = prompt('請輸入要掃描的資料夾路徑 (Mock):', 'C:\\');
+    return mockPath;
+  }
+}
+
+import type { InstalledApp } from '../shared/ipc-contracts';
+
+/**
+ * 取得已安裝的應用程式清單
+ */
+export async function getInstalledApps(): Promise<InstalledApp[]> {
+  if (isTauriEnvironment()) {
+    try {
+      return await invoke<InstalledApp[]>('get_installed_apps');
+    } catch (error) {
+      console.error('Tauri get_installed_apps failed:', error);
+      throw error;
+    }
+  }
+
+  // Mock
+  return [
+    {
+      id: 'mock-app-1',
+      displayName: 'Microsoft Visual Studio Code',
+      publisher: 'Microsoft Corporation',
+      displayVersion: '1.93.0',
+      estimatedSizeBytes: 350000000,
+      uninstallString: 'C:\\Program Files\\Microsoft VS Code\\unins000.exe'
+    },
+    {
+      id: 'mock-app-2',
+      displayName: 'Steam',
+      publisher: 'Valve Corporation',
+      displayVersion: '2.10.91.91',
+      estimatedSizeBytes: 8900000000,
+      uninstallString: 'C:\\Program Files (x86)\\Steam\\uninstall.exe'
+    },
+    {
+      id: 'mock-app-3',
+      displayName: 'Microsoft Visual C++ 2015-2022 Redistributable (x64)',
+      publisher: 'Microsoft Corporation',
+      displayVersion: '14.38.33130.0',
+      estimatedSizeBytes: 24000000,
+      uninstallString: 'MsiExec.exe /X{...}'
+    }
+  ];
+}
+
+/**
+ * 執行解除安裝
+ */
+export async function uninstallApp(uninstallString: string): Promise<void> {
+  if (isTauriEnvironment()) {
+    try {
+      await invoke('uninstall_app', { uninstallString });
+    } catch (error) {
+      console.error('Tauri uninstall_app failed:', error);
+      throw error;
+    }
+  } else {
+    console.log(`[MOCK] 解除安裝指令: ${uninstallString}`);
+    return new Promise(resolve => setTimeout(resolve, 1000));
   }
 }

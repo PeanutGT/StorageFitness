@@ -22,7 +22,7 @@
         <header class="header-bar">
           <div class="scan-control-group">
             <div class="path-input-wrapper">
-              <svg class="path-input-icon" viewBox="0 0 24 24">
+              <svg id="btn-browse-folder" class="path-input-icon interactive" viewBox="0 0 24 24" title="選擇資料夾...">
                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
               </svg>
               <input type="text" id="target-path-input" class="path-input" value="C:\" placeholder="輸入或選擇掃描路徑 (例如 C:\ 或專案資料夾)..." spellcheck="false" />
@@ -45,10 +45,35 @@
           </button>
         </header>
 
-        <!-- 麵包屑路徑列 (僅在視覺化分頁顯示) -->
-        <nav id="breadcrumb-bar" class="breadcrumb-bar">
-          <span class="breadcrumb-item active" data-path="root">C:\</span>
-        </nav>
+        <!-- 麵包屑路徑列與視圖切換 (僅在視覺化分頁顯示) -->
+        <div id="visualizer-header-bar" class="visualizer-header-bar">
+          <nav id="breadcrumb-bar" class="breadcrumb-bar">
+            <span class="breadcrumb-item active" data-path="root">C:\</span>
+          </nav>
+
+          <!-- 視覺化檢視切換按鈕群組 -->
+          <div class="view-mode-selector">
+            <button id="btn-view-treemap" class="view-mode-btn active" data-mode="treemap" title="切換至矩陣方塊圖 (Treemap)">
+              <svg viewBox="0 0 24 24" class="btn-icon">
+                <rect x="3" y="3" width="8" height="8" rx="1.5"></rect>
+                <rect x="13" y="3" width="8" height="18" rx="1.5"></rect>
+                <rect x="3" y="13" width="8" height="8" rx="1.5"></rect>
+              </svg>
+              <span>方塊圖</span>
+            </button>
+            <button id="btn-view-list" class="view-mode-btn" data-mode="list" title="切換至詳細清單列表 (List View)">
+              <svg viewBox="0 0 24 24" class="btn-icon">
+                <line x1="8" y1="6" x2="21" y2="6"></line>
+                <line x1="8" y1="12" x2="21" y2="12"></line>
+                <line x1="8" y1="18" x2="21" y2="18"></line>
+                <circle cx="4" cy="6" r="1.5" fill="currentColor"></circle>
+                <circle cx="4" cy="12" r="1.5" fill="currentColor"></circle>
+                <circle cx="4" cy="18" r="1.5" fill="currentColor"></circle>
+              </svg>
+              <span>清單列表</span>
+            </button>
+          </div>
+        </div>
 
         <!-- 統計指標橫條 -->
         <div id="metrics-strip" class="metrics-strip">
@@ -72,9 +97,30 @@
           </div>
         </div>
 
-        <!-- 頁面視圖 1: 磁碟視覺化 Treemap -->
+        <!-- 頁面視圖 1: 磁碟視覺化 Treemap & List View -->
         <section id="view-visualizer" class="viewport-container">
-          <canvas id="treemap-canvas"></canvas>
+          
+          <!-- 歡迎與引導面板 (無資料時顯示) -->
+          <div id="welcome-screen" class="welcome-screen">
+            <div id="btn-welcome-browse" class="welcome-icon interactive" title="點擊選擇要掃描的資料夾...">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                <line x1="12" y1="11" x2="12" y2="17"></line>
+                <line x1="9" y1="14" x2="15" y2="14"></line>
+              </svg>
+            </div>
+            <h2 class="welcome-title">準備進行深度磁碟分析</h2>
+            <p class="welcome-desc">請選擇要掃描的磁碟，或在上方輸入特定資料夾路徑。</p>
+            <div class="welcome-actions">
+              <button class="btn-scan-drive" data-target="C:\">分析系統碟 (C:)</button>
+              <button class="btn-scan-drive" data-target="D:\">分析資料碟 (D:)</button>
+            </div>
+          </div>
+
+          <canvas id="treemap-canvas" style="display: none;"></canvas>
+
+          <!-- 清單視圖渲染容器 -->
+          <div id="listview-container" class="listview-container" style="display: none;"></div>
 
           <!-- 懸浮詳細資訊 Tooltip -->
           <div id="treemap-tooltip" class="treemap-tooltip">
@@ -85,7 +131,7 @@
           </div>
 
           <!-- 色彩圖例 -->
-          <div class="treemap-legend">
+          <div id="treemap-legend" class="treemap-legend">
             <div class="legend-item"><div class="legend-dot" style="background: var(--color-media);"></div>影音媒體</div>
             <div class="legend-item"><div class="legend-dot" style="background: var(--color-code);"></div>程式碼/專案</div>
             <div class="legend-item"><div class="legend-dot" style="background: var(--color-binary);"></div>二進位/執行檔</div>
@@ -98,8 +144,11 @@
         <!-- 頁面視圖 2: 智慧瘦身清理 -->
         <section id="view-cleaner" style="display: none; height: 100%; overflow: hidden;"></section>
 
-        <!-- 頁面視圖 3: 白名單與安全 -->
-        <section id="view-security" style="display: none; height: 100%; overflow: hidden;"></section>
+        <!-- 頁面視圖: 應用程式管理 -->
+        <section id="view-apps" style="display: none; height: 100%; overflow: hidden;"></section>
+
+        <!-- 頁面視圖 3: 健康儀表板 -->
+        <section id="view-health" style="display: none; height: 100%; overflow: hidden;"></section>
 
         <!-- 頁面視圖 4: 設定面板 -->
         <section id="view-settings" style="display: none; height: 100%; overflow: hidden;"></section>
